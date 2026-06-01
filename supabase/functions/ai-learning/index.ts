@@ -148,13 +148,13 @@ function generateExercises(weakDimensions: any[]) {
     exercises.push({
       type: "改错题",
       question: "找出下面句子中的错误：虽然天气很冷，但是我穿了厚衣服。",
-      options: ["A. "虽然"用错了", "B. "但是"用错了", "C. 句子没有错误", "D. "很"用错了"],
+      options: ["A. \"虽然\"用错了", "B. \"但是\"用错了", "C. 句子没有错误", "D. \"很\"用错了"],
       answer: "C",
-      explanation: "这个句子语法正确，"虽然……但是……"搭配使用没有问题。",
+      explanation: "这个句子语法正确，\"虽然……但是……\"搭配使用没有问题。",
     });
     exercises.push({
       type: "造句题",
-      question: "请用"越来越"造一个句子",
+      question: "请用\"越来越\"造一个句子",
       keyword: "越来越",
       sample_answer: "我的中文水平越来越高了。",
     });
@@ -165,7 +165,7 @@ function generateExercises(weakDimensions: any[]) {
       question: "他每天早上___六点起床。",
       options: ["A. 在", "B. 是", "C. 有", "D. 到"],
       answer: "A",
-      explanation: "表示在某个时间点做某事，用"在"。",
+      explanation: "表示在某个时间点做某事，用\"在\"。",
     });
   }
   return exercises;

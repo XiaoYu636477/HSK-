@@ -1,5 +1,5 @@
-[auth.email]
-enable_confirmations = false
+project_id = "pyyiiwcidhllptliorvl"
 
-[auth.phone]
+[auth]
+[auth.email]
 enable_confirmations = false

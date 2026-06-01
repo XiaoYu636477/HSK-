@@ -56,7 +56,7 @@ function buildMockData(hskLevel: string, count: number) {
       type: "choice",
       options: ["A. 他很高兴地说", "B. 他很高兴的说", "C. 他很高兴了说", "D. 他很高兴着说"],
       answer: "A",
-      explanation: "副词修饰动词时用"地"，"高兴地说"是正确搭配。"地"字结构：形容词/副词 + 地 + 动词。",
+      explanation: "副词修饰动词时用\"地\"，\"高兴地说\"是正确搭配。\"地\"字结构：形容词/副词 + 地 + 动词。",
     })),
     summary: { level: hskLevel, focus: ["词汇", "语法"], total: count },
   };
