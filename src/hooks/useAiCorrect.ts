@@ -58,15 +58,38 @@ function writeCache(key: string, data: CorrectionResultData) {
   } catch { /* 忽略存储失败 */ }
 }
 
+/** 持久化最近一次批改结果，防止切后台/页面刷新丢失 */
+const LAST_RESULT_KEY = (mod: string) => `hsk_last_${mod}`;
+
+function readLastResult(key: string): CorrectionResultData | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const { data } = JSON.parse(raw);
+    return data as CorrectionResultData;
+  } catch { return null; }
+}
+
+function writeLastResult(key: string, data: CorrectionResultData) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ data }));
+  } catch { /* ignore */ }
+}
+
+function clearLastResult(key: string) {
+  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+}
+
 interface UseAiCorrectOptions {
   module: string;
   language: string;
 }
 
 export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
+  const lastKey = LAST_RESULT_KEY(mod);
   const [loading, setLoading]   = useState(false);
   const [progress, setProgress] = useState<ProgressStage | null>(null);
-  const [result, setResult]     = useState<CorrectionResultData | null>(null);
+  const [result, setResult]     = useState<CorrectionResultData | null>(() => readLastResult(lastKey));
   const timerRefs               = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   /** 清除所有进度计时器 */
@@ -107,6 +130,7 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
     const cached = readCache(key);
     if (cached) {
       setResult(cached);
+      writeLastResult(lastKey, cached);
       toast.success(language === 'zh' ? '已加载上次批改结果' : language === 'ru' ? 'Загружен кэш' : 'Loaded from cache');
       return;
     }
@@ -147,6 +171,7 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
         setResult(data as CorrectionResultData);
         setProgress(null);
         writeCache(key, data as CorrectionResultData);
+        writeLastResult(lastKey, data as CorrectionResultData);
         toast.success(language === 'zh' ? '批改完成！' : language === 'ru' ? 'Готово!' : 'Done!');
       }, 400);
 
@@ -164,7 +189,8 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
     clearTimers();
     setResult(null);
     setProgress(null);
-  }, []);
+    clearLastResult(lastKey);
+  }, [lastKey]);
 
   return { loading, progress, result, correct, reset };
 }
