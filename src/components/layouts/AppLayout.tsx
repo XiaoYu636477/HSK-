@@ -15,6 +15,7 @@ import {
   LogOut, LogIn, Menu, Globe, Home, ChevronRight,
   ChevronLeft, GraduationCap,
   Dumbbell, FileText, Search, X, Clock, BookMarked, BookOpenCheck, Rocket,
+  Shield,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────
@@ -257,7 +258,7 @@ function SidebarSearch({ language, userId, onSelect }: SidebarSearchProps) {
 // 主布局组件
 // ─────────────────────────────────────────────────────────
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { language, setLanguage } = useLanguage();
   const location  = useLocation();
   const navigate  = useNavigate();
@@ -401,6 +402,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+
+          {/* 管理员后台入口 - 仅管理员可见 */}
+          {profile?.role === 'admin' && (
+            <Link
+              to="/yuteacher"
+              onClick={() => setMobileOpen(false)}
+              title={mini ? (language === 'zh' ? '管理后台' : language === 'ru' ? 'Админ' : 'Admin') : undefined}
+              className={`group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200 ${
+                mini ? 'justify-center p-3' : 'gap-3 px-3 py-3'
+              } text-white/45 hover:text-amber-400 hover:bg-amber-500/10`}
+            >
+              <Shield className="w-4 h-4 shrink-0 text-amber-400/60 group-hover:text-amber-400 transition-colors" />
+              {!mini && <span className="flex-1 truncate text-amber-300/80">{language === 'zh' ? '管理后台' : language === 'ru' ? 'Админ' : 'Admin'}</span>}
+            </Link>
+          )}
         </nav>
 
         {/* ── 快捷入口卡片 ── */}
