@@ -1,0 +1,288 @@
+/* stylelint-disable */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────
+   动画关键帧
+───────────────────────────────────────── */
+@keyframes radar-draw {
+  from { stroke-dashoffset: 1200; opacity: 0; }
+  to   { stroke-dashoffset: 0;    opacity: 1; }
+}
+@keyframes radar-fill-in {
+  from { opacity: 0; transform: scale(0.6); transform-origin: 50% 50%; }
+  to   { opacity: 1; transform: scale(1);   transform-origin: 50% 50%; }
+}
+@keyframes dot-pop {
+  0%   { r: 0;   opacity: 0; }
+  70%  { r: 6;   opacity: 1; }
+  100% { r: 4.5; opacity: 1; }
+}
+@keyframes bar-grow {
+  from { width: 0%; }
+}
+@keyframes score-count {
+  from { opacity: 0; transform: translateY(8px) scale(0.8); }
+  to   { opacity: 1; transform: translateY(0)  scale(1); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(226 71% 50% / 0.3); }
+  50%       { box-shadow: 0 0 0 8px hsl(226 71% 50% / 0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.7; }
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* 亮色：柔白底 + 宝蓝主色 */
+    --background: 218 30% 96%;
+    --foreground: 224 55% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 55% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 55% 7%;
+
+    --primary: 226 72% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 218 22% 93%;
+    --secondary-foreground: 224 55% 7%;
+    --muted: 218 20% 93%;
+    --muted-foreground: 220 16% 46%;
+    --accent: 218 20% 93%;
+    --accent-foreground: 224 55% 7%;
+
+    --destructive: 0 78% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 218 20% 87%;
+    --input: 218 20% 90%;
+    --ring: 226 72% 42%;
+
+    --chart-1: 226 72% 52%;
+    --chart-2: 165 62% 40%;
+    --chart-3: 280 62% 58%;
+    --chart-4: 38 88% 55%;
+    --chart-5: 10 80% 58%;
+
+    --sidebar-background: 226 55% 12%;
+    --sidebar-foreground: 220 30% 92%;
+    --sidebar-primary: 220 30% 98%;
+    --sidebar-primary-foreground: 226 55% 12%;
+    --sidebar-accent: 226 48% 20%;
+    --sidebar-accent-foreground: 220 30% 98%;
+    --sidebar-border: 226 42% 20%;
+    --sidebar-ring: 226 72% 56%;
+
+    --success: 142 68% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 88% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 217 85% 55%;
+    --info-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 224 45% 5%;
+    --foreground: 220 25% 95%;
+    --card: 224 42% 8%;
+    --card-foreground: 220 25% 95%;
+    --popover: 224 42% 8%;
+    --popover-foreground: 220 25% 95%;
+
+    --primary: 226 80% 64%;
+    --primary-foreground: 224 45% 5%;
+    --secondary: 224 32% 13%;
+    --secondary-foreground: 220 25% 95%;
+    --muted: 224 32% 13%;
+    --muted-foreground: 220 18% 58%;
+    --accent: 224 32% 13%;
+    --accent-foreground: 220 25% 95%;
+
+    --destructive: 0 70% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 224 28% 16%;
+    --input: 224 28% 16%;
+    --ring: 226 80% 64%;
+
+    --chart-1: 226 80% 64%;
+    --chart-2: 165 65% 48%;
+    --chart-3: 280 65% 65%;
+    --chart-4: 38 85% 60%;
+    --chart-5: 10 75% 62%;
+
+    --sidebar-background: 224 52% 4%;
+    --sidebar-foreground: 220 25% 90%;
+    --sidebar-primary: 220 25% 98%;
+    --sidebar-primary-foreground: 224 52% 4%;
+    --sidebar-accent: 224 42% 11%;
+    --sidebar-accent-foreground: 220 25% 98%;
+    --sidebar-border: 224 36% 13%;
+    --sidebar-ring: 226 80% 64%;
+
+    --success: 142 68% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 88% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 217 85% 55%;
+    --info-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar { width: 5px; height: 5px; background: transparent; }
+  *::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 { @apply text-balance; }
+}
+
+@layer utilities {
+  /* ── 渐变 ── */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(226 72% 44%) 0%, hsl(256 72% 58%) 100%);
+  }
+  .gradient-hero {
+    background: linear-gradient(135deg,
+      hsl(226 72% 38%) 0%,
+      hsl(256 68% 46%) 55%,
+      hsl(290 62% 40%) 100%);
+  }
+  .gradient-sidebar {
+    background: linear-gradient(180deg, hsl(226 55% 14%) 0%, hsl(228 62% 7%) 100%);
+  }
+  .gradient-card-shine {
+    background: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(218 25% 98%) 100%);
+  }
+
+  /* ── 玻璃态 ── */
+  .glass {
+    background: hsl(var(--card) / 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+  .glass-dark {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* ── 文字渐变 ── */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(226 72% 50%) 0%, hsl(280 62% 60%) 100%);
+  }
+
+  /* ── 卡片质感 ── */
+  .card-premium {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.7);
+    box-shadow:
+      0 1px 2px hsl(224 55% 8% / 0.04),
+      0 4px 12px hsl(224 55% 8% / 0.06),
+      inset 0 1px 0 rgba(255,255,255,0.8);
+    border-radius: 1rem;
+  }
+  .card-premium:hover {
+    box-shadow:
+      0 2px 4px hsl(224 55% 8% / 0.06),
+      0 12px 32px hsl(226 72% 42% / 0.10),
+      inset 0 1px 0 rgba(255,255,255,0.9);
+    transform: translateY(-2px);
+    transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  /* ── 内发光边框 ── */
+  .border-glow {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 1px hsl(226 72% 50% / 0.25);
+  }
+
+  /* ── 动画工具类 ── */
+  .animate-fade-up        { animation: fade-up  0.5s cubic-bezier(0.22,1,0.36,1) both; }
+  .animate-fade-in        { animation: fade-in  0.4s ease both; }
+  .animate-card-in        { animation: card-in  0.5s cubic-bezier(0.22,1,0.36,1) both; }
+  .animate-score-count    { animation: score-count 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .animate-float          { animation: float 3s ease-in-out infinite; }
+  .animate-pulse-glow     { animation: pulse-glow 2s ease-in-out infinite; }
+  .animate-spin-slow      { animation: spin-slow 8s linear infinite; }
+  .animate-radar-fill     { animation: radar-fill-in 0.7s cubic-bezier(0.22,1,0.36,1) both; }
+  .animate-radar-draw     {
+    stroke-dasharray: 1200;
+    stroke-dashoffset: 1200;
+    animation: radar-draw 1s cubic-bezier(0.22,1,0.36,1) forwards;
+  }
+  .animate-bar-grow       { animation: bar-grow 0.8s cubic-bezier(0.22,1,0.36,1) both; }
+
+  /* ── 延迟 ── */
+  .delay-100  { animation-delay: 0.10s; }
+  .delay-150  { animation-delay: 0.15s; }
+  .delay-200  { animation-delay: 0.20s; }
+  .delay-300  { animation-delay: 0.30s; }
+  .delay-400  { animation-delay: 0.40s; }
+  .delay-500  { animation-delay: 0.50s; }
+  .delay-600  { animation-delay: 0.60s; }
+  .delay-700  { animation-delay: 0.70s; }
+  .delay-800  { animation-delay: 0.80s; }
+
+  /* ── Shimmer 骨架屏 ── */
+  .shimmer {
+    background: linear-gradient(90deg,
+      hsl(var(--muted)) 0%, hsl(var(--secondary)) 50%, hsl(var(--muted)) 100%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* ── 网格背景 ── */
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .bg-dot {
+    background-image: radial-gradient(hsl(var(--border) / 0.6) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* ── 分数色 ── */
+  .score-high { color: hsl(var(--success)); }
+  .score-mid  { color: hsl(var(--warning)); }
+  .score-low  { color: hsl(var(--destructive)); }
+}
