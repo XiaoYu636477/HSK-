@@ -8,18 +8,31 @@ const cors = {
 const DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
 const DOUBAO_MODEL    = "doubao-1-5-pro-32k-250115";
 
-// ─── 系统提示词 ───────────────────────────────────────────────────────────────
 function buildSystemPrompt(language: string): string {
   const langNote = language === "ru"
-    ? "题干和选项用俄语，解析用俄语，但汉字例子保留中文。"
+    ? "题干用俄语，解析用俄语，但汉字/拼音例子保留中文。HSK等级名保留英文格式（HSK1-HSK6）。"
     : language === "en"
-    ? "Write questions and options in English, explanations in English, but keep Chinese characters/examples in Chinese."
-    : "题干、选项、解析均用中文。";
+    ? "Write questions and options in English, explanations in English, but keep Chinese characters/pinyin in Chinese. Keep HSK level names as HSK1-HSK6."
+    : "题干、选项、解析均用中文。HSK等级用HSK1-HSK6格式。";
 
-  return `你是一位 HSK/HSKK 专家级出题老师，拥有10年以上对外汉语教学经验。
+  return `你是一位拥有15年以上对外汉语教学经验的 HSK/HSKK 专家级出题老师，深度掌握 HSK3.0（2021年最新版）考试大纲和题型改革。
+
 ${langNote}
 
-你的任务是根据学生的薄弱维度和 HSK 级别，生成针对性练习题。
+你的任务是根据学生的薄弱维度和 HSK 目标级别，严格按照 HSK3.0 标准生成高质量、有教学价值的练习题。
+
+【HSK3.0（2021版）关键变化】
+- 等级从原来的6级调整为"三等九级"：初等(1-3级)、中等(4-6级)、高等(7-9级)
+- 但传统HSK1-6级仍广泛使用，以下用传统1-6级编号
+- 新增题型重点：语段排序题、图文匹配题、听后复述题、任务型写作
+- 强调"语言交际能力"而非单纯语法知识
+- 词汇量标准更新：HSK1=500词, HSK2=1272词, HSK3=2245词, HSK4=3245词, HSK5=4316词, HSK6=5456词
+- 语法点重新分级，更注重实际使用频率
+
+【HSK各级别出题标准】
+- HSK1-2级（初等）：基础词汇、简单句型、日常场景。题型以选择+判断为主
+- HSK3-4级（中等）：复句结构、段落理解、话题表达。加入语段排序和简短写作
+- HSK5-6级（高等）：学术词汇、长文阅读、观点表达。加入任务型写作和听后复述
 
 【输出格式要求】
 - 严格返回纯 JSON，不要任何 Markdown 标记或代码块
@@ -27,42 +40,31 @@ ${langNote}
 - 每道题结构：
   {
     "id": 1,
-    "dimension": "词汇",
-    "knowledge_point": "形近字辨析",
+    "dimension": "词汇",           // 所属维度
+    "knowledge_point": "形近字辨析", // 具体考点
+    "hsk_level": "HSK4",          // 题目对标等级
     "question": "题目文本",
-    "type": "choice",  // choice(单选) | judge(判断对错) | fill(填空)
-    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],  // 判断题: ["A. 正确", "B. 错误"]；填空题: null
-    "answer": "A",   // 选择/判断填选项字母；填空填正确内容
-    "explanation": "详细解析，说明正确答案的语言学依据"
+    "type": "choice",             // choice|judge|fill|sort|writing
+    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],  // sort题为排序项，writing题为null
+    "answer": "A",                // 正确答案
+    "explanation": "详细解析：①考点分析 ②正确选项的语言学依据 ③常见错误选项的陷阱分析 ④拓展知识点",
+    "difficulty": "easy"          // easy|medium|hard
   }
-- summary 结构：{ "level": "HSK5", "focus": ["词汇","语法"], "total": 10 }
+- summary 结构：{ "level": "HSK5", "focus": ["词汇","语法"], "total": 10, "hsk30_note": "本题组对标HSK3.0标准" }
 
-【出题原则】
-- 紧扣薄弱维度，每个薄弱维度至少出2题
-- 题目由易到难，覆盖记忆层、理解层、应用层
-- 单选题为主（占70%），判断题（20%），填空题（10%）
-- 所有题目难度与指定 HSK 级别严格对应
-- 解析要有教学价值：解释为什么对、为什么错`;
+【科学出题原则（严格遵循）】
+1. 知识点分层：每道题标注 difficulty（easy/medium/hard），题目由易到难递进
+2. 薄弱维度聚焦：每个薄弱维度至少出2题，且题目要覆盖不同考点
+3. 题型多样化：70%单选题, 15%判断题, 10%填空题, 5%语段排序/写作题
+4. 解析三步法：每条解析必须包含 ①考点定位 ②正确依据 ③常见陷阱
+5. HSK3.0词汇表对标：出题用词严格控制在目标级别的词汇范围内
+6. 语境真实化：题目素材取自真实生活/学术场景，避免生造例句
+7. 干扰项科学设计：每个错误选项都对应一个典型的学习者偏误
+
+【语言要求】
+${language === "ru" ? "- 题目题干和选项翻译为俄语，但例句和汉字保留中文\n- 解析用俄语撰写" : language === "en" ? "- 题目题干和选项翻译为英语，但例句和汉字保留中文\n- 解析用英语撰写" : "- 所有内容用中文撰写"}`;
 }
 
-// ─── Mock 题目 ────────────────────────────────────────────────────────────────
-function buildMockData(hskLevel: string, count: number) {
-  return {
-    questions: Array.from({ length: count }, (_, i) => ({
-      id: i + 1,
-      dimension: i % 2 === 0 ? "词汇" : "语法",
-      knowledge_point: i % 2 === 0 ? "形近字辨析" : "补语用法",
-      question: `【${hskLevel}】示例题 ${i + 1}：下列哪个词语使用正确？`,
-      type: "choice",
-      options: ["A. 他很高兴地说", "B. 他很高兴的说", "C. 他很高兴了说", "D. 他很高兴着说"],
-      answer: "A",
-      explanation: "副词修饰动词时用\"地\"，\"高兴地说\"是正确搭配。\"地\"字结构：形容词/副词 + 地 + 动词。",
-    })),
-    summary: { level: hskLevel, focus: ["词汇", "语法"], total: count },
-  };
-}
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -82,25 +84,30 @@ Deno.serve(async (req) => {
     const safeCount = Math.min(Math.max(Number(questionCount) || 10, 5), 15);
     const apiKey    = Deno.env.get("DOUBAO_API_KEY");
 
-    // ── Mock 模式 ────────────────────────────────────────────────────────────
     if (!apiKey) {
-      console.warn("未找到 DOUBAO_API_KEY，返回 Mock 题目");
-      return new Response(JSON.stringify(buildMockData(hskLevel, safeCount)), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({
+        error: "AI service not configured",
+        questions: [],
+        summary: { level: hskLevel, focus: dimensions, total: 0 }
+      }), { status: 503, headers: { ...cors, "Content-Type": "application/json" } });
     }
 
-    // ── 构建用户消息 ──────────────────────────────────────────────────────────
     const userMsg = [
-      `学生信息：`,
-      `- HSK 目标级别：${hskLevel}`,
-      `- 薄弱维度：${dimensions.join("、")}`,
-      `- 需要生成题目数量：${safeCount} 道`,
+      `请严格按照以下要求生成 ${safeCount} 道 HSK 练习题：`,
       ``,
-      `请严格按照薄弱维度出题，帮助学生有针对性地强化。`,
+      `【学生画像】`,
+      `- 目标 HSK 级别：${hskLevel}`,
+      `- 需要强化的薄弱维度：${dimensions.join("、")}`,
+      ``,
+      `【出题要求】`,
+      `- 严格对标 HSK3.0（2021版）${hskLevel} 级别的词汇量和语法标准`,
+      `- 每个薄弱维度至少分配 2 题`,
+      `- 题型分配：70%单选题 + 15%判断题 + 10%填空题 + 5%语段排序/写作题`,
+      `- 难度递进：前30% easy，中间40% medium，后30% hard`,
+      `- 所有题目必须紧密围绕薄弱维度，帮助学生精准提升`,
+      `- 每题解析必须包含：考点定位 + 正确依据 + 常见陷阱分析`,
     ].join("\n");
 
-    // ── 调用豆包 ──────────────────────────────────────────────────────────────
     const resp = await fetch(`${DOUBAO_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
@@ -123,13 +130,11 @@ Deno.serve(async (req) => {
     const json     = await resp.json();
     const raw      = json.choices?.[0]?.message?.content ?? "";
 
-    // ── 提取 JSON（容错：去掉可能的 Markdown 代码块包裹）────────────────────
     const jsonStr  = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
     let parsed: unknown;
     try {
       parsed = JSON.parse(jsonStr);
     } catch {
-      // 再尝试提取第一个 { ... }
       const match = jsonStr.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("无法解析豆包返回的 JSON");
       parsed = JSON.parse(match[0]);
