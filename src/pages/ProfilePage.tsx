@@ -2,12 +2,15 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useYuCode } from '@/contexts/YuCodeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/db/supabase';
 import { toast } from 'sonner';
 import {
   PenLine, BookOpen, Mic, BookOpenCheck, Dumbbell,
   KeyRound, Sparkles, ChevronRight, CheckCircle2,
   Rocket, BookMarked, BarChart3, Lightbulb, History,
   Clock, ShieldCheck, Loader2, LogOut,
+  Pencil, Settings, MessageSquare,
 } from 'lucide-react';
 
 const useL = (language: string) =>
@@ -155,6 +158,77 @@ function ModuleCard({ mod, onClick, L }: {
   );
 }
 
+// ─── 个人资料卡 ──────────────────────────────────────────────────────────────────
+function ProfileCard({ L }: { L: ReturnType<typeof useL> }) {
+  const { user, profile, refreshProfile } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [nickname, setNickname] = useState(profile?.username || user?.user_metadata?.username || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!user || !nickname.trim()) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ username: nickname.trim() })
+      .eq('id', user.id);
+    if (error) {
+      toast.error(L('保存失败', 'Save failed', 'Ошибка сохранения'));
+    } else {
+      toast.success(L('昵称已更新', 'Nickname updated', 'Ник обновлён'));
+      await refreshProfile();
+      setEditing(false);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="max-w-sm mx-auto w-full">
+      <div className="rounded-2xl bg-white border border-sky-100 shadow-sm p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+              {(profile?.username || user?.email || 'U')[0].toUpperCase()}
+            </div>
+            {editing ? (
+              <input
+                value={nickname}
+                onChange={e => setNickname(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border border-sky-200 bg-sky-50 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-400 w-32"
+                placeholder={L('昵称', 'Nickname', 'Ник')}
+                autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleSave()}
+              />
+            ) : (
+              <div>
+                <p className="text-sm font-bold text-slate-800">{profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0]}</p>
+                <p className="text-[10px] text-slate-400">{profile?.role === 'admin' ? L('管理员', 'Admin', 'Админ') : user?.email}</p>
+              </div>
+            )}
+          </div>
+          {editing ? (
+            <div className="flex gap-1">
+              <button onClick={handleSave} disabled={saving}
+                className="h-7 px-3 rounded-lg bg-indigo-500 text-white text-xs font-semibold hover:bg-indigo-600 transition-colors">
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : L('保存', 'Save', 'Сохр')}
+              </button>
+              <button onClick={() => { setEditing(false); setNickname(profile?.username || ''); }}
+                className="h-7 px-2 rounded-lg border border-slate-200 text-slate-500 text-xs hover:bg-slate-50 transition-colors">
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setEditing(true)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-colors">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── 驾驶舱主视图 ───────────────────────────────────────────────────────────────
 function CockpitView({ L }: { L: ReturnType<typeof useL> }) {
   const { yuCode, deactivate } = useYuCode();
@@ -204,6 +278,39 @@ function CockpitView({ L }: { L: ReturnType<typeof useL> }) {
               </span>
             )}
           </div>
+
+          {/* 每日使用进度条 */}
+          {yuCode && yuCode.dailyLimit > 0 && (
+            <div className="max-w-sm mx-auto w-full space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 font-medium">
+                  {L('今日用量', 'Daily Usage', 'Расход')}
+                </span>
+                <span className={`font-bold tabular-nums ${yuCode.callsToday >= yuCode.dailyLimit ? 'text-red-500' : 'text-sky-600'}`}>
+                  {yuCode.callsToday} / {yuCode.dailyLimit}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min((yuCode.callsToday / yuCode.dailyLimit) * 100, 100)}%`,
+                    background: yuCode.callsToday >= yuCode.dailyLimit
+                      ? 'linear-gradient(90deg, #ef4444, #f97316)'
+                      : 'linear-gradient(90deg, #0ea5e9, #6366f1)',
+                  }}
+                />
+              </div>
+              {yuCode.callsToday >= yuCode.dailyLimit && (
+                <p className="text-[11px] text-red-500 font-medium text-center">
+                  {L('今日次数已用完，明天0点重置', 'Daily limit reached, resets at midnight', 'Дневной лимит исчерпан')}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* 个人资料卡 */}
+          <ProfileCard L={L} />
         </div>
 
         {/* 统计卡片 */}

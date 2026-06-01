@@ -264,11 +264,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate  = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed]   = useState(false);
+  const [unreadFeedback, setUnreadFeedback] = useState(0);
+
+  // 管理员：拉取未读反馈数
+  useEffect(() => {
+    if (!user || profile?.role !== 'admin') { setUnreadFeedback(0); return; }
+    supabase
+      .from('feedbacks')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_read', false)
+      .then(({ count }) => setUnreadFeedback(count ?? 0));
+  }, [user, profile]);
 
   const curLang = languages.find(l => l.code === language)!;
 
   // 欢迎语：区分登录/未登录，三语言，有温度
-  const displayName = user?.user_metadata?.username || user?.email?.split('@')[0] || '';
+  const displayName = profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || '';
   const welcomeMsg = displayName
     ? (
         language === 'zh' ? `欢迎回来，亲爱的 ${displayName}！` :
@@ -415,6 +426,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <Shield className="w-4 h-4 shrink-0 text-amber-400/60 group-hover:text-amber-400 transition-colors" />
               {!mini && <span className="flex-1 truncate text-amber-300/80">{language === 'zh' ? '管理后台' : language === 'ru' ? 'Админ' : 'Admin'}</span>}
+              {unreadFeedback > 0 && (
+                <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 animate-pulse">
+                  {unreadFeedback > 99 ? '99+' : unreadFeedback}
+                </span>
+              )}
             </Link>
           )}
         </nav>
@@ -623,11 +639,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2 pl-2 border-l border-border/40">
                 <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center">
                   <span className="text-xs font-bold text-primary">
-                    {(user.user_metadata?.username || user.email || 'U')[0].toUpperCase()}
+                    {(profile?.username || user.user_metadata?.username || user.email || 'U')[0].toUpperCase()}
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground max-w-[140px] truncate">
-                  {user.user_metadata?.username || user.email}
+                  {profile?.username || user.user_metadata?.username || user.email}
                 </span>
               </div>
             )}

@@ -11,6 +11,7 @@ import PracticePage from './pages/PracticePage';
 import TemplatesPage from './pages/TemplatesPage';
 import ExamPage from './pages/ExamPage';
 import ProfilePage from './pages/ProfilePage';
+import FeedbackPage from './pages/FeedbackPage';
 import AdminPage from './pages/AdminPage';
 
 export interface RouteConfig {
@@ -37,4 +38,5 @@ export const routes: RouteConfig[] = [
   { name: '考题解析', path: '/exam',     element: <ExamPage /> },
   { name: '学习舱',   path: '/profile',  element: <ProfilePage /> },
   { name: '管理后台', path: '/yuteacher', element: <AdminPage />, public: true, bare: true },
+  { name: '意见反馈', path: '/feedback',  element: <FeedbackPage /> },
 ];
