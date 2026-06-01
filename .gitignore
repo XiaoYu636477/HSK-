@@ -32,3 +32,6 @@ tasks
 
 # Environment
 .env
+
+# Supabase temp
+supabase/.temp/
