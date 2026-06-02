@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Eye, Layers, BookMarked, PenLine, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FileText, Download, Eye, Layers, BookMarked, PenLine, ChevronDown, Sparkles, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 const L = (lang: string, zh: string, en: string, ru: string) =>
   lang === 'zh' ? zh : lang === 'ru' ? ru : en;
@@ -69,6 +72,31 @@ const templates = [
 export default function TemplatesPage() {
   const { language } = useLanguage();
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const teacherWeChat = 'XiaoYu636477'; // 微信/老师ID
+
+  const handleTemplateClick = (i: number, tpl: typeof templates[0]) => {
+    if (expanded === i) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(i);
+    setDialogTitle(L(language, tpl.zh, tpl.en, tpl.ru));
+    setDialogOpen(true);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(teacherWeChat).then(() => {
+      setCopied(true);
+      toast.success(L(language, '已复制！', 'Copied!', 'Скопировано!'));
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      toast.error(L(language, '复制失败，请手动记录', 'Copy failed', 'Ошибка копирования'));
+    });
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-10">
@@ -114,7 +142,7 @@ export default function TemplatesPage() {
             >
               {/* 卡片头部（点击展开） */}
               <button
-                onClick={() => setExpanded(isOpen ? null : i)}
+                onClick={() => handleTemplateClick(i, tpl)}
                 className="w-full p-5 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
               >
                 <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${tpl.grad} flex items-center justify-center shrink-0 shadow-md transition-transform duration-250 ${isOpen ? 'scale-105 -rotate-2' : ''}`}>
@@ -137,18 +165,6 @@ export default function TemplatesPage() {
 
                 <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
               </button>
-
-              {/* 展开内容 */}
-              {isOpen && (
-                <div className="px-5 pb-4 space-y-1.5 border-t border-border/30 pt-3">
-                  {(language === 'ru' ? tpl.items.ru : language === 'en' ? tpl.items.en : tpl.items.zh).map((item, j) => (
-                    <div key={j} className="flex items-start gap-2.5 py-1.5 px-3 rounded-lg bg-background/40 border border-border/20 hover:bg-background/60 transition-colors cursor-default">
-                      <BookMarked className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
-                      <span className="text-xs text-foreground/80 leading-relaxed">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })}
@@ -169,6 +185,52 @@ export default function TemplatesPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* 联系老师弹窗 */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-[calc(100%-2rem)] md:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-bold">{dialogTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
+                <Sparkles className="w-7 h-7 text-white" />
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {L(language,
+                  '本模板为小鱼老师的专属学习资料，请联系老师获取完整版。添加微信，领取更多 HSK 备考资源！',
+                  'This template is exclusive material from Teacher XiaoYu. Please contact the teacher for the full version. Add WeChat to get more HSK prep resources!',
+                  'Этот шаблон — эксклюзивный материал учителя XiaoYu. Добавьте учителя в WeChat для получения полной версии и дополнительных материалов HSK!'
+                )}
+              </p>
+            </div>
+            <div className="rounded-xl bg-muted/40 border border-border/40 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">
+                  {L(language, '老师微信 / Teacher WeChat', '老师微信 / Teacher WeChat', 'WeChat учителя')}
+                </span>
+                <Button variant="ghost" size="sm" onClick={handleCopy} className="h-8 px-3 text-xs gap-1.5 rounded-lg">
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied
+                    ? L(language, '已复制', 'Copied', 'Скопировано')
+                    : L(language, '复制', 'Copy', 'Копировать')}
+                </Button>
+              </div>
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-background border border-border/30">
+                <span className="font-bold text-foreground tracking-wide select-all">{teacherWeChat}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center leading-relaxed">
+              {L(language,
+                '添加好友时请备注"HSK学习"，小鱼老师看到后会第一时间通过并发送资料给你～',
+                'Please note "HSK study" when adding. Teacher XiaoYu will approve and send you the materials ASAP~',
+                'При добавлении укажите "HSK обучение". Учитель XiaoYu подтвердит заявку и пришлёт материалы~'
+              )}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
