@@ -15,7 +15,7 @@ const translations: Translations = {
   'nav.tips': { zh: '学习技巧', en: 'Learning Tips', ru: 'Советы' },
   'nav.history': { zh: '历史记录', en: 'History', ru: 'История' },
   'nav.exam':     { zh: '考题解析', en: 'Exam Analysis', ru: 'Анализ заданий' },
-  'nav.profile':  { zh: '学习舱', en: 'My Cockpit', ru: 'Моя кабина' },
+  'nav.profile':  { zh: '学习舱', en: 'My Cockpit', ru: 'Учебный кабинет' },
   'nav.login': { zh: '登录', en: 'Login', ru: 'Вход' },
   'nav.logout': { zh: '退出登录', en: 'Logout', ru: 'Выход' },
   'nav.register': { zh: '注册账号', en: 'Register', ru: 'Регистрация' },

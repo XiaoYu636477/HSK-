@@ -60,7 +60,7 @@ function ActivationPage({ L, activate }: {
   const steps = [
     { n: '01', zh: '收到老师给你的小Yu码', en: 'Get your Yu Code from teacher', ru: 'Получите код от учителя' },
     { n: '02', zh: '输入下方激活框并点击激活', en: 'Enter below and click Activate', ru: 'Введите код и нажмите активацию' },
-    { n: '03', zh: '进入学习舱，开启AI学习之旅', en: 'Enter cockpit and start learning', ru: 'Войдите в кабину и начните учёбу' },
+    { n: '03', zh: '进入学习舱，开启AI学习之旅', en: 'Enter cockpit and start learning', ru: 'Войдите в учебный кабинет и начните учёбу' },
   ];
 
   return (
@@ -76,7 +76,7 @@ function ActivationPage({ L, activate }: {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">
-              {L('HSK 学习舱', 'HSK Learning Cockpit', 'Учебная кабина HSK')}
+              {L('HSK 学习舱', 'HSK Learning Cockpit', 'Учебный кабинет HSK')}
             </h1>
             <p className="text-sm mt-1.5 text-slate-500">
               {L('AI驱动的全科智能学习平台', 'AI-powered all-in-one HSK platform', 'ИИ-платформа для изучения HSK')}
@@ -256,7 +256,7 @@ function CockpitView({ L }: { L: ReturnType<typeof useL> }) {
             <h1 className="text-3xl md:text-4xl font-black text-slate-800 text-balance">
               {yuCode?.nickname
                 ? L(`${yuCode.nickname} 的学习舱`, `${yuCode.nickname}'s Cockpit`, `Кабина ${yuCode.nickname}`)
-                : L('我的学习舱', 'My Learning Cockpit', 'Моя учебная кабина')}
+                : L('我的学习舱', 'My Learning Cockpit', 'Мой учебный кабинет')}
             </h1>
             <p className="text-sm md:text-base mt-2 text-slate-500">
               {L('AI 驱动 · HSK 全科智能学习中枢', 'AI-powered all-in-one HSK hub', 'ИИ-центр изучения HSK')}
