@@ -1,8 +1,7 @@
-
             import { createClient } from "@supabase/supabase-js";
 
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            // Supabase 配置（公开密钥，直接硬编码确保所有平台构建正常）
+            const supabaseUrl = "https://pyyiiwcidhllptliorvl.supabase.co";
+            const supabaseAnonKey = "sb_publishable_TziXFe7CxjUTAfg38VeOzA_J7FEam7Z";
 
             export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-            
