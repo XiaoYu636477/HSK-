@@ -2,10 +2,8 @@ import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileText, Download, Eye, Layers, BookMarked, PenLine, ChevronDown, Sparkles, Copy, Check } from 'lucide-react';
-import { toast } from 'sonner';
+import { FileText, Eye, Layers, BookMarked, PenLine, ChevronDown, Sparkles } from 'lucide-react';
 
 const L = (lang: string, zh: string, en: string, ru: string) =>
   lang === 'zh' ? zh : lang === 'ru' ? ru : en;
@@ -74,9 +72,6 @@ export default function TemplatesPage() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  const teacherWeChat = 'XiaoYu636477'; // 微信/老师ID
 
   const handleTemplateClick = (i: number, tpl: typeof templates[0]) => {
     if (expanded === i) {
@@ -86,16 +81,6 @@ export default function TemplatesPage() {
     setExpanded(i);
     setDialogTitle(L(language, tpl.zh, tpl.en, tpl.ru));
     setDialogOpen(true);
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(teacherWeChat).then(() => {
-      setCopied(true);
-      toast.success(L(language, '已复制！', 'Copied!', 'Скопировано!'));
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
-      toast.error(L(language, '复制失败，请手动记录', 'Copy failed', 'Ошибка копирования'));
-    });
   };
 
   return (
@@ -199,35 +184,12 @@ export default function TemplatesPage() {
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {L(language,
-                  '本模板为小鱼老师的专属学习资料，请联系老师获取完整版。添加微信，领取更多 HSK 备考资源！',
-                  'This template is exclusive material from Teacher XiaoYu. Please contact the teacher for the full version. Add WeChat to get more HSK prep resources!',
-                  'Этот шаблон — эксклюзивный материал учителя XiaoYu. Добавьте учителя в WeChat для получения полной версии и дополнительных материалов HSK!'
+                  '本模板为小鱼老师的专属学习资料，请联系老师获取完整版。',
+                  'This template is exclusive material from Teacher XiaoYu. Please contact the teacher for the full version.',
+                  'Этот шаблон — эксклюзивный материал учителя XiaoYu. Свяжитесь с учителем для получения полной версии.'
                 )}
               </p>
             </div>
-            <div className="rounded-xl bg-muted/40 border border-border/40 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">
-                  {L(language, '老师微信 / Teacher WeChat', '老师微信 / Teacher WeChat', 'WeChat учителя')}
-                </span>
-                <Button variant="ghost" size="sm" onClick={handleCopy} className="h-8 px-3 text-xs gap-1.5 rounded-lg">
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied
-                    ? L(language, '已复制', 'Copied', 'Скопировано')
-                    : L(language, '复制', 'Copy', 'Копировать')}
-                </Button>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-background border border-border/30">
-                <span className="font-bold text-foreground tracking-wide select-all">{teacherWeChat}</span>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground text-center leading-relaxed">
-              {L(language,
-                '添加好友时请备注"HSK学习"，小鱼老师看到后会第一时间通过并发送资料给你～',
-                'Please note "HSK study" when adding. Teacher XiaoYu will approve and send you the materials ASAP~',
-                'При добавлении укажите "HSK обучение". Учитель XiaoYu подтвердит заявку и пришлёт материалы~'
-              )}
-            </p>
           </div>
         </DialogContent>
       </Dialog>
