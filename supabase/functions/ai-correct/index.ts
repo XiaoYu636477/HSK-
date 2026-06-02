@@ -437,8 +437,7 @@ function parseAiJson(content: string): Record<string, unknown> | null {
     return null;
   }
 }
-
-// ─── Mock 数据（API 不可用时降级） ─────────────────────────────────────────────
+// ─── Mock 数据（API 不可用时降级，不生成假数据避免误导）────────────────────────
 function generateMockData(mod: string, dimensions: string[]) {
   const radarData: Record<string, number> = {};
   dimensions.forEach((d) => { radarData[d] = Math.floor(Math.random() * 25) + 68; });
@@ -448,7 +447,6 @@ function generateMockData(mod: string, dimensions: string[]) {
   );
   const level = totalScore >= 90 ? "优秀" : totalScore >= 75 ? "良好" : totalScore >= 60 ? "合格" : "不合格";
 
-  // essay / homework / oral 共用的新模板字段
   const isNewModule = mod === "essay" || mod === "homework" || mod === "oral";
 
   return {
@@ -459,69 +457,17 @@ function generateMockData(mod: string, dimensions: string[]) {
       passed: totalScore >= 60,
       dimension_scores: { ...radarData },
     } : undefined,
-    strengths: isNewModule ? [
-      "词语搭配使用自然，如'参加比赛'搭配准确，符合汉语习惯",
-      "句子整体意思表达清楚，读者可以理解主要信息",
-      "尝试使用了复句结构，表达层次有所体现",
-    ] : undefined,
-    corrections: [
-      {
-        original: "在图片里她在跑步，所以我估计她在参加跑步比赛中",
-        corrected: "图片里她正在跑步，看起来像是在参加跑步比赛",
-        dimension: dimensions[1] ?? dimensions[0],
-        explanation: "表达不地道，句式杂糅。'所以'表因果，此处应用'看起来像是'表推测；句末不需要'中'。",
-      },
-      {
-        original: "这个电影非常好看极了",
-        corrected: "这部电影非常好看",
-        dimension: dimensions[0],
-        explanation: "'非常'和'极了'不能同时使用，语义重复。量词'部'用于书、电影等，不用'个'。",
-      },
-    ],
-    improvement_tips: isNewModule ? dimensions.map((dim) => ({
-      dimension: dim,
-      tip: dim === "语法" || dim === "词汇"
-        ? "每天练习5个新句型，重点掌握复句（虽然…但是…、不但…而且…），用例句而不是单词来记忆"
-        : dim === "发音" || dim === "声调"
-        ? "重点练习容易混淆的声调组合（二声/三声），推荐用跟读录音对比法，每次录下自己的发音和原音对比"
-        : "多读多写，每天至少完成一篇短文，注意段落间的过渡词使用",
-    })) : undefined,
-    exercises: [
-      {
-        type: "改错题",
-        question: "找出并改正句子中的错误：我昨天去了商店和买了很多东西。",
-        options: ["A. '和'改为'还'", "B. '去了'改为'去'", "C. '很多'改为'多'", "D. 无错误"],
-        answer: "A",
-        explanation: "连续动作之间用'还'表顺承，'和'只能连接名词或名词性短语。",
-        hint: "注意'和'在汉语中的用法限制",
-      },
-      {
-        type: "改错题",
-        question: "哪句话表达更自然？",
-        options: ["A. 我对汉语很有兴趣", "B. 我对于汉语非常的有兴趣", "C. 我很对汉语有兴趣", "D. 我有汉语兴趣"],
-        answer: "A",
-        explanation: "'对…很有兴趣'是固定表达，'非常的'中'的'多余，'对于'过于书面。",
-        hint: "注意'对'和'对于'的使用区别",
-      },
-      {
-        type: "造句题",
-        question: "用'虽然……但是……'造句，表达转折关系",
-        keyword: "虽然……但是……",
-        sample_answer: "虽然今天下雨了，但是我还是坚持去上学了。",
-        hint: "前半句说原因/情况，后半句表示与预期相反的结果",
-      },
-    ],
-    model_answer: isNewModule
-      ? "图片中，一位年轻女性正在一条平整的跑道上全力奔跑。她身穿运动服，神情专注，步伐矫健。跑道两侧有观众在加油助威，现场气氛热烈。从她的装备和场地来判断，她应该正在参加一场正式的田径比赛。这种坚持不懈、勇于挑战的精神令人敬佩。"
+    strengths: isNewModule
+      ? ["AI 服务暂时不可用，以上评分为系统估算，仅供参考。请稍后重新提交获取详细批改。"]
       : undefined,
-    overall_comment: "整体表现良好！词汇运用基本准确，句子意思清晰。主要问题在于句式使用不够地道，建议多阅读地道的中文材料，积累自然表达方式。",
-    suggestions: mod === "score" ? "建议加强语法专项练习，每天坚持阅读中文文章，重点突破词汇和写作模块。" : undefined,
-    trend_data: mod === "score" ? [
-      { date: "2026-01", score: 72 }, { date: "2026-02", score: 75 },
-      { date: "2026-03", score: 78 }, { date: "2026-04", score: 82 }, { date: "2026-05", score: 85 },
-    ] : undefined,
+    corrections: [],
+    improvement_tips: isNewModule ? [] : undefined,
+    exercises: [],
+    model_answer: isNewModule ? "AI 服务暂时不可用，请稍后重新提交批改。" : undefined,
+    overall_comment: "AI 服务当前不可用，已显示系统估算结果。请稍后重试。",
   };
 }
+
 
 // ─── 主处理器 ─────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {

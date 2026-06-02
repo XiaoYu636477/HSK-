@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/db/supabase';
 import { toast } from 'sonner';
 import type { CorrectionResultData } from '@/types/types';
@@ -91,6 +91,22 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
   const [progress, setProgress] = useState<ProgressStage | null>(null);
   const [result, setResult]     = useState<CorrectionResultData | null>(() => readLastResult(lastKey));
   const timerRefs               = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // 每次挂载 / 页面可见时，重新检查 sessionStorage，防止切后台期间结果被写入后丢失
+  useEffect(() => {
+    if (result) return;  // 已有结果，不覆盖
+    const cached = readLastResult(lastKey);
+    if (cached) setResult(cached);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        const c = readLastResult(lastKey);
+        if (c) setResult(c);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [lastKey]);
 
   /** 清除所有进度计时器 */
   const clearTimers = () => {
