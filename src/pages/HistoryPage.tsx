@@ -12,8 +12,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   History, PenLine, BookOpen, Mic, BarChart3, LogIn,
-  ChevronRight, Sparkles, BookOpenCheck, FileText,
+  ChevronRight, Sparkles, BookOpenCheck, FileText, Trash2, CheckSquare, X,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import CorrectionResult from '@/components/common/CorrectionResult';
 import ExamAnalysisResult from '@/components/common/ExamAnalysisResult';
 import type { CorrectionRecord } from '@/types/types';
@@ -39,6 +41,9 @@ export default function HistoryPage() {
   const [module,   setModule]   = useState<string>('all');
   const [hskLevel, setHskLevel] = useState<string>('all');
   const [selected, setSelected] = useState<CorrectionRecord | null>(null);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const L = (zh: string, en: string, ru: string) =>
     language === 'en' ? en : language === 'ru' ? ru : zh;
@@ -81,6 +86,34 @@ export default function HistoryPage() {
       { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' },
     );
 
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('corrections').delete().eq('id', id);
+    if (error) { toast.error(L('删除失败', 'Delete failed', 'Ошибка удаления')); return; }
+    setRecords(prev => prev.filter(r => r.id !== id));
+    toast.success(L('已删除', 'Deleted', 'Удалено'));
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setDeleting(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase.from('corrections').delete().in('id', ids);
+    if (error) { toast.error(L('删除失败', 'Delete failed', 'Ошибка удаления')); setDeleting(false); return; }
+    setRecords(prev => prev.filter(r => !selectedIds.has(r.id)));
+    setSelectedIds(new Set());
+    setDeleteMode(false);
+    setDeleting(false);
+    toast.success(L(`已删除 ${ids.length} 条`, `Deleted ${ids.length} records`, `Удалено ${ids.length}`));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
   /* 未登录 */
   if (!user) return (
     <div className="max-w-3xl mx-auto">
@@ -117,6 +150,30 @@ export default function HistoryPage() {
 
       {/* ── 筛选条 ──────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={deleteMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setDeleteMode(!deleteMode); setSelectedIds(new Set()); }}
+            className="h-8 px-3 text-xs rounded-lg gap-1"
+          >
+            <Trash2 className="w-3 h-3" />
+            {deleteMode ? L('取消', 'Cancel', 'Отмена') : ''}
+            {!deleteMode && L('删除', 'Delete', 'Удалить')}
+          </Button>
+          {deleteMode && selectedIds.size > 0 && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleDeleteSelected}
+              disabled={deleting}
+              className="h-8 px-3 text-xs rounded-lg gap-1"
+            >
+              {deleting ? '…' : <Trash2 className="w-3 h-3" />}
+              {L(`删除 (${selectedIds.size})`, `Delete (${selectedIds.size})`, `Удалить (${selectedIds.size})`)}
+            </Button>
+          )}
+        </div>
         {/* 模块 Tabs */}
         <Tabs value={module} onValueChange={(v) => { setModule(v); setHskLevel('all'); }} className="flex-1 min-w-0">
           <TabsList className="h-9 rounded-xl flex-wrap gap-0.5 bg-muted/60 w-full md:w-auto overflow-x-auto whitespace-nowrap">
@@ -176,8 +233,10 @@ export default function HistoryPage() {
             const isExam = rec.module === 'exam';
             return (
               <div key={rec.id}
-                className="group rounded-2xl border border-border/60 bg-card p-4 flex items-center gap-4 cursor-pointer hover:shadow-md hover:border-primary/30 hover:-translate-y-px transition-all duration-200"
-                onClick={() => setSelected(rec)}>
+                className={`group rounded-2xl border bg-card p-4 flex items-center gap-4 transition-all duration-200 ${
+                  deleteMode ? 'cursor-default' : 'cursor-pointer hover:shadow-md hover:border-primary/30 hover:-translate-y-px'
+                } ${selectedIds.has(rec.id) ? 'border-rose-400/50 bg-rose-50/30' : 'border-border/60'}`}
+                onClick={() => { if (deleteMode) { toggleSelect(rec.id); } else { setSelected(rec); } }}>
 
                 {/* 图标 */}
                 <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center shrink-0`}>
@@ -209,6 +268,16 @@ export default function HistoryPage() {
 
                 {/* 分数 / 统计 */}
                 <div className="text-right shrink-0">
+                  {deleteMode ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(rec.id); }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title={L('删除', 'Delete', 'Удалить')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <>
                   {isExam ? (
                     <div className="text-xs text-muted-foreground leading-5">
                       <p className={`text-lg font-black ${cfg.color}`}>
@@ -224,12 +293,15 @@ export default function HistoryPage() {
                       <p className="text-xs text-muted-foreground">{L('综合分', 'Score', 'Балл')}</p>
                     </>
                   )}
+                    </>
+                  )}
                 </div>
 
                 <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
               </div>
             );
-          })}
+          }
+          )}
         </div>
       )}
 

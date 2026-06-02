@@ -1,16 +1,17 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useYuCode } from '@/contexts/YuCodeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/db/supabase';
 import { toast } from 'sonner';
+import TrendChart from '@/components/common/TrendChart';
 import {
   PenLine, BookOpen, Mic, BookOpenCheck, Dumbbell,
   KeyRound, Sparkles, ChevronRight, CheckCircle2,
   Rocket, BookMarked, BarChart3, Lightbulb, History,
   Clock, ShieldCheck, Loader2, LogOut,
-  Pencil, Settings, MessageSquare,
+  Pencil, Settings, MessageSquare, TrendingUp,
 } from 'lucide-react';
 
 const useL = (language: string) =>
@@ -232,7 +233,38 @@ function ProfileCard({ L }: { L: ReturnType<typeof useL> }) {
 // ─── 驾驶舱主视图 ───────────────────────────────────────────────────────────────
 function CockpitView({ L }: { L: ReturnType<typeof useL> }) {
   const { yuCode, deactivate } = useYuCode();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [trendData, setTrendData] = useState<{date: string; score: number}[]>([]);
+  const [loadingCharts, setLoadingCharts] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoadingCharts(true);
+    supabase
+      .from('corrections')
+      .select('radar_data, created_at')
+      .eq('user_id', user.id)
+      .not('radar_data', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (!data || data.length === 0) { setLoadingCharts(false); return; }
+        const points: {date: string; score: number}[] = [];
+        [...data].reverse().forEach((rec: any) => {
+          if (!rec.radar_data) return;
+          const vals = Object.values(rec.radar_data).filter((v): v is number => typeof v === 'number');
+          if (vals.length === 0) return;
+          points.push({
+            date: new Date(rec.created_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
+            score: Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length),
+          });
+        });
+        setTrendData(points.slice(-12));
+        setLoadingCharts(false);
+      })
+      .catch(() => setLoadingCharts(false));
+  }, [user]);
 
   const daysLeft = yuCode?.expiresAt
     ? Math.max(0, Math.ceil((new Date(yuCode.expiresAt).getTime() - Date.now()) / 86400000))
@@ -327,6 +359,53 @@ function CockpitView({ L }: { L: ReturnType<typeof useL> }) {
             </div>
           ))}
         </div>
+
+        {/* 学习进步曲线 */}
+        {trendData.length >= 2 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 进步趋势图 */}
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-sky-500" />
+                <span className="text-sm font-bold text-slate-700">{L('进步趋势', 'Progress Trend', 'Тренд прогресса')}</span>
+              </div>
+              <div className="h-[180px]">
+                <TrendChart data={trendData} />
+              </div>
+            </div>
+
+            {/* 最近表现概要 */}
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-indigo-500" />
+                <span className="text-sm font-bold text-slate-700">{L('学习概览', 'Overview', 'Обзор')}</span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: L('总批改次数', 'Total Corrections', 'Всего проверок'), val: trendData.length, bg: 'bg-sky-50', text: 'text-sky-600' },
+                  { label: L('近期均分', 'Recent Avg', 'Средний балл'), val: trendData.length > 0 ? Math.round(trendData.reduce((a,b) => a+b.score, 0) / trendData.length) : '—', bg: 'bg-indigo-50', text: 'text-indigo-600' },
+                  { label: L('最高分', 'Best Score', 'Лучший'), val: trendData.length > 0 ? Math.max(...trendData.map(d=>d.score)) : '—', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                ].map(({ label, val, bg, text }) => (
+                  <div key={label} className={`flex items-center justify-between px-4 py-3 rounded-xl ${bg}`}>
+                    <span className="text-sm text-slate-600">{label}</span>
+                    <span className={`text-lg font-black ${text}`}>{val}</span>
+                  </div>
+                ))}
+                {trendData.length >= 2 && (() => {
+                  const diff = trendData[trendData.length-1].score - trendData[0].score;
+                  return (
+                    <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-amber-50">
+                      <span className="text-sm text-slate-600">{L('总提升', 'Total Gain', 'Прирост')}</span>
+                      <span className={`text-lg font-black ${diff >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        {diff >= 0 ? '+' : ''}{diff} {L('分', 'pts', 'б.')}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 分割线 */}
         <div className="flex items-center gap-3">

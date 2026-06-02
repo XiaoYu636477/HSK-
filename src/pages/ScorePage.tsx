@@ -22,7 +22,9 @@ export default function ScorePage() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<Result | null>(null);
+  const [result, setResult] = useState<Result | null>(() => {
+    try { const r = sessionStorage.getItem('hsk_score_result'); return r ? JSON.parse(r) : null; } catch { return null; }
+  });
   const [focused, setFocused] = useState(false);
   const [tab, setTab] = useState<'text' | 'image'>('text');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -60,6 +62,7 @@ export default function ScorePage() {
   };
 
   const handleSubmit = async () => {
+    if (loading) { toast.info(L('正在分析中，请稍候…', 'Processing, please wait…', 'Идёт обработка…')); return; }
     if (tab === 'text' && !text.trim()) {
       toast.error(L('请输入成绩数据', 'Please enter score data', 'Введите оценки'));
       return;
@@ -68,6 +71,7 @@ export default function ScorePage() {
       toast.error(L('请先上传图片', 'Please upload an image first', 'Загрузите изображение'));
       return;
     }
+    setResult(null);  // 清除旧结果，防止串台
     setLoading(true);
     try {
       const body: Record<string, string> = { module: 'score', language };
@@ -80,6 +84,7 @@ export default function ScorePage() {
       const { data, error } = await supabase.functions.invoke('ai-correct', { body });
       if (error) { const m = await error?.context?.text?.(); throw new Error(m || error.message); }
       setResult(data);
+      try { sessionStorage.setItem('hsk_score_result', JSON.stringify(data)); } catch {}
       toast.success(L('分析完成！', 'Done!', 'Готово!'));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : '分析失败');
@@ -95,7 +100,7 @@ export default function ScorePage() {
           </div>
           <span className="truncate">{t('nav.score', language)}</span>
         </h1>
-        <button onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }}
+        <button onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); try { sessionStorage.removeItem('hsk_score_result'); } catch {} }}
           className="shrink-0 text-sm text-muted-foreground hover:text-foreground border border-border/60 px-3 md:px-4 py-2 rounded-xl hover:bg-muted/50 hover:border-primary/30 transition-all duration-200 whitespace-nowrap">
           {L('重新分析', 'New', 'Заново')}
         </button>

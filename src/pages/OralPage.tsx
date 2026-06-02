@@ -24,6 +24,7 @@ export default function OralPage() {
     language === 'zh' ? zh : language === 'ru' ? ru : en;
 
   const handleSubmit = async () => {
+    if (loading) { toast.info(L('正在批改中，请稍候…', 'Processing, please wait…', 'Идёт обработка…')); return; }
     if (!isActivated) { openModal(); return; }
     if (!text.trim()) { toast.error(L('请输入口语文字稿', 'Please enter transcript', 'Введите текст')); return; }
     const callCheck = await trackApiCall();

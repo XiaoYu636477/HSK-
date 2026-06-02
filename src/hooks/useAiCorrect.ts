@@ -136,6 +136,7 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
     }
 
     setLoading(true);
+    setResult(null);  // 立即清除旧结果，防止跨次串台
     startProgress();
 
     try {
