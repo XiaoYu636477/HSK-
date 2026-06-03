@@ -586,7 +586,8 @@ export default function AdminPage() {
     }
   }, [profile?.role, loadAllUsers]);
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     window.location.href = '/login';
   };
 
