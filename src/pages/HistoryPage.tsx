@@ -71,8 +71,13 @@ export default function HistoryPage() {
     });
   }, [user, module, hskLevel]);
 
-  /* 综合分 */
+  /* 综合分 - 优先使用AI返回的加权总分，其次自己算均值 */
   const avgScore = (rec: CorrectionRecord) => {
+    // score_data 现在存储的是 score_info（包含加权总分）
+    if (rec.score_data && typeof (rec.score_data as any).total === 'number') {
+      return (rec.score_data as any).total;
+    }
+    // 兜底：简单平均
     const vals = Object.values(rec.radar_data ?? {}).filter((v): v is number => typeof v === 'number');
     return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
   };

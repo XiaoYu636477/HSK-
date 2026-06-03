@@ -648,7 +648,7 @@ Deno.serve(async (req) => {
         radar_data:       aiResult.radar_data,
         corrections_data: aiResult.corrections,
         exercises_data:   aiResult.exercises,
-        score_data:       aiResult.trend_data ?? null,
+        score_data:       aiResult.score_info ?? null,
         suggestions:      aiResult.suggestions ?? aiResult.overall_comment ?? null,
       });
     }
