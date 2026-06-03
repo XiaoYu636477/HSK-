@@ -1,6 +1,6 @@
 {
-  "buildCommand": "vite build --config vite.config.prod.ts",
+  "buildCommand": "npx vite build --config vite.config.prod.ts",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install --no-frozen-lockfile",
+  "installCommand": "npm install",
   "framework": "vite"
 }
