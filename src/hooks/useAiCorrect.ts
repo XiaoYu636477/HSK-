@@ -144,7 +144,7 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
   }) => {
     // 同步锁，彻底杜绝连点
     if (loadingRef.current) {
-      toast.info(language === 'zh' ? '正在批改中，请稍候…' : language === 'ru' ? 'Идёт обработка…' : 'Processing, please wait…');
+      toast.info(language === 'zh' ? '上一次批改正在进行中，请稍候查看结果' : language === 'ru' ? 'Идёт обработка, дождитесь результата' : 'Previous correction is still processing, please wait');
       return;
     }
     loadingRef.current = true;

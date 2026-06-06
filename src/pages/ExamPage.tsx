@@ -126,7 +126,7 @@ export default function ExamPage() {
 
   // ── 提交解析 ──────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (loading) { toast.info(L('正在解析中，请稍候…', 'Processing…', 'Идёт обработка…')); return; }
+    if (loading) { toast.info(L('上一次解析正在进行中，请稍候查看结果', 'Processing…', 'Идёт обработка, дождитесь результата')); return; }
     if (!isActivated) { openModal(); return; }
     if (!inputText.trim() && !imageUrl) {
       toast.error(L('请输入题目内容或上传图片', 'Please input question or upload image', 'Введите вопрос или загрузите изображение'));

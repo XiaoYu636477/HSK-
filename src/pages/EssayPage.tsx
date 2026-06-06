@@ -43,7 +43,7 @@ export default function EssayPage() {
   };
 
   const handleSubmit = async () => {
-    if (loading) { toast.info(L('正在批改中，请稍候…', 'Processing, please wait…', 'Идёт обработка…')); return; }
+    if (loading) { toast.info(L('上一次批改正在进行中，请稍候查看结果', 'Previous correction is still processing, please wait', 'Идёт обработка, дождитесь результата')); return; }
     if (!isActivated) { openModal(); return; }
     if (tab === 'text' && !text.trim()) {
       toast.error(L('请输入作文内容', 'Please enter your essay', 'Введите текст')); return;
