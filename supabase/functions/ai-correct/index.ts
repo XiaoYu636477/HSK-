@@ -132,23 +132,16 @@ function buildSystemPrompt(mod: string): string {
 - 明显低于该级别典型水准 = 50-65分（需努力）
 - 禁止将初级学生的作业按高级标准评分（导致不应有的低分）
 
-"HSK3.0 作业批改评分原则"
-作业批改的核心任务不是打分，而是改错——找出错误、改正、讲清原因。
-评分只是一个参考标签，不用过度计算：
-
-- 批改优先级：①找出所有错误 ②给出正确版本 ③解释语法规则 ④最后给一个参考分数
-- 参考分数范围（作业批改重在改错，分数从宽）：
-  表述正确/仅有微小瑕疵 → 85-98分
-  有几个小错误但整体可理解 → 70-88分
-  错误较明显/影响部分理解 → 55-72分
-  严重跑题或完全无法理解 → 40-55分
-  注：学生只要答了题、语法结构基本正确，就应该给70分以上
+【HSK3.0 作业批改评分原则】
+作业类型灵活处理：
+A. 单句改错/填空/选择题：重点语言准确性，满分=语法完全正确+词汇准确
+B. 短文/段落类：语法(30%)+词汇(25%)+结构(20%)+表达(15%)+逻辑(8%)+书写(2%)
 
 请严格按以下 JSON 结构返回：
 {
   "radar_data": { "词汇": 0-100整数, "语法": 0-100整数, "结构": 0-100整数, "表达": 0-100整数, "逻辑": 0-100整数, "书写": 0-100整数 },
   "score_info": {
-    "total": 按上述参考分数范围凭经验给出大致分数，不需要严格加权,
+    "total": 按作业类型选用加权公式或直接给分，0-100整数,
     "level": "优秀或良好或合格或不合格",
     "passed": total>=60则true,
     "detected_level": "HSK1-2级或HSK3-4级或HSK5级或HSK6级",
@@ -415,7 +408,6 @@ async function callDoubao(params: {
       "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
   });
 
   if (!resp.ok) {
@@ -656,7 +648,7 @@ Deno.serve(async (req) => {
         radar_data:       aiResult.radar_data,
         corrections_data: aiResult.corrections,
         exercises_data:   aiResult.exercises,
-        score_data:       aiResult.score_info ?? null,
+        score_data:       aiResult.trend_data ?? null,
         suggestions:      aiResult.suggestions ?? aiResult.overall_comment ?? null,
       });
     }
