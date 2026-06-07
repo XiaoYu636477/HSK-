@@ -275,6 +275,7 @@ async function callDoubao(params: {
     model,
     temperature: 0.3,
     max_tokens: 4096,
+    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user",   content: hasImage ? userContent : userText },
