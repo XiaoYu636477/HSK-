@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Upload, BookOpen, Sparkles, Image, FileText, Loader2 } from 'lucide-react';
 import CorrectionResult from '@/components/common/CorrectionResult';
 import AiLoading from '@/components/common/AiLoading';
+import HskLevelSelector from '@/components/common/HskLevelSelector';
 import { useAiCorrect } from '@/hooks/useAiCorrect';
 
 export default function HomeworkPage() {
@@ -18,6 +19,7 @@ export default function HomeworkPage() {
   const [focused, setFocused]             = useState(false);
   const [imagePreview, setImagePreview]   = useState<string | null>(null);
   const [imageBase64, setImageBase64]     = useState<string | null>(null);
+  const [hskLevel, setHskLevel]           = useState('HSK3-4');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { loading, progress, result, correct, reset } = useAiCorrect({ module: 'homework', language });
@@ -58,9 +60,9 @@ export default function HomeworkPage() {
       return;
     }
     if (tab === 'text') {
-      await correct({ text: text.trim() });
+      await correct({ text: text.trim(), hskLevel });
     } else {
-      await correct({ imageBase64: imageBase64!, text: L('请识别图片中的作业并进行批改', 'Read and correct the homework in the image', 'Исправьте задание') });
+      await correct({ imageBase64: imageBase64!, text: L('请识别图片中的作业并进行批改', 'Read and correct the homework in the image', 'Исправьте задание'), hskLevel });
     }
   };
 
@@ -114,6 +116,17 @@ export default function HomeworkPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{t('module.homework.desc', language)}</p>
         </div>
       </div>
+
+      <HskLevelSelector
+        options={[
+          { value: 'HSK3-4', label: L('HSK3-4级', 'HSK3-4', 'HSK3-4') },
+          { value: 'HSK5-6', label: L('HSK5-6级', 'HSK5-6', 'HSK5-6') },
+        ]}
+        value={hskLevel}
+        onChange={setHskLevel}
+      />
+
+      {/* 输入卡片 */}
 
       <div className="card-premium overflow-hidden">
         <div className="flex border-b border-border/50 bg-muted/20">

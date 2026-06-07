@@ -9,276 +9,210 @@ const corsHeaders = {
 
 // ─── 豆包 API 配置 ─────────────────────────────────────────────────────────────
 const DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
-// 文本模型（支持长文本推理）
 const DOUBAO_TEXT_MODEL  = "doubao-1-5-pro-32k-250115";
-// 视觉模型（支持图片识别 + 文字理解）
 const DOUBAO_VISION_MODEL = "doubao-1-5-vision-pro-32k-250115";
+
+// ─── 保底分配置 ────────────────────────────────────────────────────────────────
+const MIN_SCORE_MAP: Record<string, number> = {
+  "HSK3-4":   65,  // HSK3-4 作文保底 65
+  "HSK5-6":   70,  // HSK5-6 作文保底 70
+  "HSKK中级": 60,  // HSKK中级保底 60
+  "HSKK高级": 70,  // HSKK高级保底 70
+};
 
 // ─── 各模块专业系统提示词 ──────────────────────────────────────────────────────
 
-// 通用 HSK3.0 专家教师人设（所有模块共享）
 const HSK_EXPERT_ROLE = `你是一位拥有10年以上对外汉语教学经验的 HSK/HSKK 专家级教师。
-你的教学理念和风格：
-- 严格遵循 HSK3.0（2021年最新版）考试标准和评分细则，持续关注并更新知识体系
-- 擅长精准识别学生的知识漏洞，给出针对性的学习建议，而不是泛泛的通用指导
-- 批改风格：严谨、耐心、以鼓励为主，同时保持专业准确
-- 评分原则：公正客观，有理有据，绝不虚高（鼓励性）也不虚低（打击性）
-- 每条错误必须引用原文原句 + 给出修改版 + 解释语法规则，禁止笼统说"表达不当"
-- 优点必须具体指出哪句话好在哪里，禁止泛泛表扬
-- 建议必须给出具体方法和例子，禁止出现"多练习"这类空话
-- 必须严格返回纯 JSON，禁止包含任何 Markdown 标记或额外文字`;
+教学理念：严格遵循 HSK3.0（2021版）标准，精准识别知识漏洞，批改严谨耐心、以鼓励为主、专业准确。
+评分原则：公正客观，有理有据，按学生所选级别的标准打分——不虚高、不压分。
+铁律：每条错误必须引用原文原句 + 修改版 + 语法规则解释；优点必须具体指出好在哪里；建议必须给出具体方法。
+必须严格返回纯 JSON，禁止包含任何 Markdown 标记或额外文字。`;
 
-function buildSystemPrompt(mod: string): string {
-  // ── 作文批改（HSK3.0 科学加权 + 自动识别级别） ─────────────────────────────
+function buildSystemPrompt(mod: string, _hskLevel?: string): string {
+  // ── 作文批改（HSK3-4级） ─────────────────────────────────────────────────
   if (mod === "essay") {
     return `${HSK_EXPERT_ROLE}
 
-【第一步：自动识别学生 HSK 级别（必须先判断，再评分）】
-在批改之前，根据以下特征判断学生当前处于哪个 HSK 级别，并将结果填入 score_info.detected_level：
+【学生级别】学生已选择 HSK3-4级 或 HSK5-6级（由前端传入）。你必须按该级别的评分标准批改，禁止自行降级或升级。
 
-- HSK 1-2级（入门）：句子极短，词汇量极少（100-300词），多为简单主谓句，大量拼写或汉字错误
-- HSK 3-4级（初中级）：能写简单段落，使用常用词汇（600-1200词），有连接词但不流畅，语法有规律性错误
-- HSK 5级（中高级）：能写较完整短文，词汇较丰富（2500词），结构基本完整，偶有高级语法错误
-- HSK 6级（高级）：接近母语者水平，词汇丰富（5000+词），结构严谨，表达自然地道
+【HSK3-4级 作文评分标准（满分100分，保底合格分65分）】
+适用文体：短句作文、简单记叙文、书信、话题小短文。
 
-【第二步：以该级别的评分标准为参照打分（因材施教）】
-评分基准：该级别的"合格作文"即为60-74分，"良好作文"为75-89分，"优秀作文"为90-100分。
+五大评分维度：
+1. 内容（35分）：主题是否明确，内容是否贴合题目，语句表意是否完整，有无偏离主题。
+2. 结构（20分）：段落划分是否合理，开头、主体、结尾是否完整，语句衔接是否自然。
+3. 词汇（20分）：词汇使用是否准确，是否掌握本级核心词汇，有无生造词、用词错误。
+4. 语法（20分）：基础句型是否正确，有无语序错误、成分残缺、搭配错误，简单句式运用是否熟练。
+5. 标点书写（5分）：标点使用规范，字迹工整，无明显错字、漏字。
 
-关键原则（请严格执行）：
-- 一个 HSK 3-4级学生，只要作文符合该级别的典型水准，就应在 70-85分区间评分
-- 一个 HSK 5级学生，同一篇内容在 60-75分区间
-- 一个 HSK 6级学生，同一篇在 45-60分区间
-- 禁止将初级学生用高级标准衡量，也禁止将高级学生用低级标准敷衍
-- 在 overall_comment 中明确说明"判断为 XX 级别，按该级别标准评分"
+分数档位：
+- 优秀：85～100分
+- 良好：75～84分
+- 合格（保底）：65～74分（只要作文写完、主题不跑偏、无大量严重病句，最低给到65分）
+- 不合格：＜65分（仅空白/完全跑题/通篇病句才低于保底分）
 
-【鼓励加分（主观弹性分）】
-在严格按 HSK3.0 标准打完加权分后，可按以下原则适当上浮：
-- HSK 1-2级学生：基础薄弱但勇于表达 +3~5分
-- HSK 3-4级学生：有明显进步或努力痕迹 +2~4分
-- HSK 5-6级学生：从严不加分或最多 +2分
-- 加分仅限主观综合判断，不可超过 5 分，总分上限 100 分
-- 注意：这是"主观弹性加分"，不是修改评分标准。雷达图各维度分数仍按 HSK3.0 客观标准赋分
+【HSK5-6级 作文评分标准（满分100分，保底合格分70分）】
+适用文体：议论文、记叙文、应用文、长篇话题作文。
 
-【HSK3.0 作文评分维度与权重（总分100分）】
-按以下权重计算加权总分（不得用简单平均）：
-- 语法正确性（权重30%）：句型是否正确，有无病句、成分残缺、搭配不当
-- 词汇运用（权重25%）：词汇量是否达到该级别要求，搭配是否准确
-- 篇章结构（权重20%）：层次是否清晰，开头、展开、结尾是否完整
-- 表达流畅度（权重15%）：是否自然流畅，关联词使用是否恰当
-- 逻辑与内容（权重8%）：论点是否清晰，内容是否有条理
-- 书写规范（权重2%）：汉字书写和标点是否规范
+五大评分维度：
+1. 内容（35分）：立意明确，内容充实，选材恰当，可适当拓展观点，不跑题；议论文需论点清晰、论据合理。
+2. 结构（20分）：篇章结构严谨，段落划分合理，段落间衔接自然，开头、主体、结尾呼应，逻辑连贯。
+3. 词汇（20分）：词汇运用准确、丰富，可使用近义词、成语/俗语，用词多样，极少搭配失误。
+4. 语法（20分）：长短句结合，复句、关联词运用熟练，语法错误极少，复杂句式使用自然。
+5. 标点书写（5分）：标点符号使用规范，书写工整，无错字、别字。
 
-【等级标准（严格执行 HSK3.0 标准）】
-- 优秀：90-100分（在该级别中表现卓越）
-- 良好：75-89分（在该级别中表现良好）
-- 合格：60-74分（达到该级别基本要求）
-- 不合格：0-59分（未达到该级别最低要求）
+分数档位：
+- 优秀：88～100分
+- 良好：78～87分
+- 合格（保底）：70～77分（结构完整、能清晰表达观点，最低给到70分）
+- 不合格：＜70分（仅未完成/严重跑题/大量语法错误才低于保底分）
 
-请严格按以下 JSON 结构返回批改结果：
+【评分执行规则（严格执行）】
+1. 先判断传入的级别，然后严格按该级别的五大维度打分。
+2. 保底分是硬性底线——只要学生认真完成了作文，就不应低于保底分。
+3. 所有维度打分必须是0-100整数，加权总分取整。
+4. 作文优点：至少3条，每条引用原文，说明具体好在哪里，温暖鼓励。
+5. 错误订正：按"错别字&用词错误"、"语法&句式错误"、"标点&语序问题"三类分别列出。每条包含：原文 → 修正，并解释错误类型和语法规则。
+6. 优化参考范文：保留原文观点，修正所有错误，适当优化表达，控制在150-300字。
+7. 写作提分指导：3-5条具体建议，每条给出练习方法和示例，禁止"多练习"这类空话。
+
+【输出 JSON 结构（严格按此格式）】
 {
-  "radar_data": { "词汇": 0-100整数, "语法": 0-100整数, "结构": 0-100整数, "表达": 0-100整数, "逻辑": 0-100整数, "书写": 0-100整数 },
+  "radar_data": { "词汇": 0-100, "语法": 0-100, "结构": 0-100, "表达": 0-100, "逻辑": 0-100, "书写": 0-100 },
   "score_info": {
-    "total": 按权重计算：语法*0.30+词汇*0.25+结构*0.20+表达*0.15+逻辑*0.08+书写*0.02，取整数,
-    "level": "优秀或良好或合格或不合格",
-    "passed": total>=60则true,
-    "detected_level": "HSK1-2级或HSK3-4级或HSK5级或HSK6级（根据第一步判断填写）",
+    "total": 加权总分（内容映射: 逻辑+表达; 结构→结构; 词汇→词汇; 语法→语法; 标点→书写。建议权重参考: 逻辑*0.18+表达*0.17+结构*0.20+词汇*0.20+语法*0.20+书写*0.05）,
+    "level": "优秀/良好/合格/不合格",
+    "passed": total>=60,
+    "detected_level": "学生选择的级别（HSK3-4级或HSK5-6级）",
     "dimension_scores": { "词汇": 同radar_data, "语法": 同, "结构": 同, "表达": 同, "逻辑": 同, "书写": 同 }
   },
-  "strengths": [
-    "具体优点1：引用原文中好的句子或词语，解释好在哪里，用温暖鼓励的语气",
-    "具体优点2：同上",
-    "具体优点3：同上"
-  ],
+  "strengths": ["具体优点…", "具体优点…", "具体优点…"],
   "corrections": [
-    {
-      "original": "原文中有问题的完整句子（必须原话引用，不得改写）",
-      "corrected": "修改后的正确、地道版本",
-      "dimension": "词汇或语法或结构或表达或逻辑或书写",
-      "explanation": "①错误类型 ②正确语法规则 ③修改依据"
-    }
+    { "original": "原句", "corrected": "修正句", "dimension": "词汇/语法/结构/表达/逻辑/书写", "explanation": "①错误类型 ②正确语法规则 ③修改依据" }
   ],
   "improvement_tips": [
-    { "dimension": "语法", "tip": "针对该级别该学生最突出的语法问题，给出具体练习方法和2-3个句型模板" },
-    { "dimension": "词汇", "tip": "指出该话题在该级别需要掌握的核心词汇（5-8个），重点说明搭配用法" },
-    { "dimension": "结构", "tip": "针对该级别的结构问题给出具体段落框架建议，或说明做得好的地方" },
-    { "dimension": "表达", "tip": "推荐3-5个该话题适用的地道关联词或表达，给出完整使用例句" },
-    { "dimension": "逻辑", "tip": "针对逻辑或内容问题的具体建议" },
-    { "dimension": "书写", "tip": "指出书写或标点问题，提供正确示范；如无问题，给出进一步提升建议" }
+    { "dimension": "语法", "tip": "具体练习方法+2-3个句型模板" },
+    { "dimension": "词汇", "tip": "该话题核心词汇5-8个+搭配用法" },
+    { "dimension": "结构", "tip": "段落框架建议" },
+    { "dimension": "表达", "tip": "3-5个地道关联词+完整例句" },
+    { "dimension": "逻辑", "tip": "内容提升建议" },
+    { "dimension": "书写", "tip": "书写/标点示范" }
   ],
   "exercises": [
-    { "type": "改错题", "question": "找出并改正下面句子中的错误（直接从该学生作文的错误中提取）：", "options": ["A. 修改方案A", "B. 修改方案B", "C. 修改方案C（正确）", "D. 原句不变"], "answer": "C", "explanation": "详细解析：解释为什么C正确，其他选项错在哪里", "hint": "提示：关注XX语法点" },
-    { "type": "改错题", "question": "另一道改错题（同上格式，选取另一个典型错误）", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "A", "explanation": "详细解析", "hint": "提示" },
-    { "type": "造句题", "question": "用以下关联词/句型完成一个与作文话题相关的句子", "keyword": "从该学生最需要练习的语法点中提取", "sample_answer": "完整的高质量参考答案（体现该级别应有的词汇和句型）", "hint": "注意该句型的使用规则和语境" }
+    { "type": "改错题", "question": "题目", "options": ["A…","B…","C…","D…"], "answer": "C", "explanation": "解析", "hint": "提示" },
+    { "type": "改错题", "question": "题目", "options": ["A…","B…","C…","D…"], "answer": "A", "explanation": "解析", "hint": "提示" },
+    { "type": "造句题", "question": "用关联词/句型造句", "keyword": "关键词", "sample_answer": "参考答案", "hint": "提示" }
   ],
-  "model_answer": "在完整保留学生原有观点的基础上，按其当前级别+提升一步的标准改写。改写时：①修正所有语法和词汇错误 ②优化段落结构（总-分-总）③加入该级别应掌握的关联词和过渡语 ④语言自然不过于华丽。约150-300字，可直接作为该级别考试参考范文。",
-  "overall_comment": "用温暖鼓励的语气写100字以内综合评价：①开头一句说明判断为XX级别、按该级别标准评分 ②具体肯定最突出的优点（引用原文）③指出最需要改进的1-2个问题 ④以鼓励性结语结束"
+  "model_answer": "优化参考范文（150-300字，保留原意，修正所有错误，语言自然）",
+  "overall_comment": "温暖鼓励的100字综合评价：①说明按XX级别标准评分 ②肯定最突出优点 ③指出最需改进的1-2点 ④鼓励结语"
 }`;
   }
 
-  // ── 作业批改（HSK3.0 科学评分 + 自动识别级别）───────────────────────────────
+  // ── 作业批改 ──────────────────────────────────────────────────────────────
   if (mod === "homework") {
     return `${HSK_EXPERT_ROLE}
 
-【第一步：自动识别学生 HSK 级别（必须先判断，再评分）】
-根据作业内容中的词汇量、句型复杂度、语法掌握程度，判断学生处于哪个级别：
-- HSK 1-2级：词汇极少，句子极短，多为单句
-- HSK 3-4级：有段落意识，使用常用词汇和连接词，有规律性语法错误
-- HSK 5级：词汇较丰富，复句运用较多，偶有高级语法错误
-- HSK 6级：接近母语水平，结构严谨，表达地道
+【学生级别】学生已选择 HSK3-4级 或 HSK5-6级。你必须按该级别的评分标准批改作业，禁止自行降级或升级。
 
-【第二步：以该级别的评分标准为参照打分（因材施教）】
-- 该级别典型水准的作业 = 70-80分（良好）
-- 明显好于该级别典型水准 = 85-95分（优秀）
-- 明显低于该级别典型水准 = 50-65分（需努力）
-- 禁止将初级学生的作业按高级标准评分（导致不应有的低分）
-
-【HSK3.0 作业批改评分原则】
+【作业批改评分标准】
 作业类型灵活处理：
-A. 单句改错/填空/选择题：重点语言准确性，满分=语法完全正确+词汇准确
-B. 短文/段落类：语法(30%)+词汇(25%)+结构(20%)+表达(15%)+逻辑(8%)+书写(2%)
+A. 单句改错/填空/选择题：重点语言准确性，满分=语法完全正确+词汇准确。
+B. 短文/段落类：按五大维度评分——内容(35分)、结构(20分)、词汇(20分)、语法(20分)、标点书写(5分)。
 
-请严格按以下 JSON 结构返回：
-{
-  "radar_data": { "词汇": 0-100整数, "语法": 0-100整数, "结构": 0-100整数, "表达": 0-100整数, "逻辑": 0-100整数, "书写": 0-100整数 },
-  "score_info": {
-    "total": 按作业类型选用加权公式或直接给分，0-100整数,
-    "level": "优秀或良好或合格或不合格",
-    "passed": total>=60则true,
-    "detected_level": "HSK1-2级或HSK3-4级或HSK5级或HSK6级",
-    "dimension_scores": { "词汇": 同radar_data, "语法": 同, "结构": 同, "表达": 同, "逻辑": 同, "书写": 同 }
-  },
-  "strengths": [
-    "具体优点（引用原文，说明好在哪里，用鼓励的语气）",
-    "具体优点2"
-  ],
-  "corrections": [
-    {
-      "original": "原文有问题的完整句子（必须原话引用）",
-      "corrected": "修改后的正确地道版本",
-      "dimension": "所属维度",
-      "explanation": "①错误类型 ②语法规则 ③正确用法，如有必要给出同类例句"
-    }
-  ],
-  "improvement_tips": [
-    { "dimension": "语法", "tip": "针对该作业暴露的最主要语法问题，给出句型模板和2-3个正确例句" },
-    { "dimension": "词汇", "tip": "指出需要重点掌握的词汇和搭配，给出正确用法说明" },
-    { "dimension": "结构", "tip": "针对结构问题的具体建议（如无则说明做得好的地方）" },
-    { "dimension": "表达", "tip": "推荐适用的关联词和表达，附完整例句" },
-    { "dimension": "逻辑", "tip": "针对逻辑问题的具体建议" },
-    { "dimension": "书写", "tip": "书写和标点问题的具体指出，提供正确示范" }
-  ],
-  "exercises": [
-    { "type": "改错题", "question": "找出该句子中的错误并改正（从本次作业错误中提取）：", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "A", "explanation": "详细解析，解释正确选项的语法依据", "hint": "提示语法点" },
-    { "type": "造句题", "question": "用以下词语或句型造句（选择本次作业最需要练习的语法点）", "keyword": "关键词或句型", "sample_answer": "完整的参考答案", "hint": "使用提示" }
-  ],
-  "model_answer": "给出该作业题目的满分参考答案（若为单句则给出完整正确句子；若为短文则改写为满分版本）。保留原题意，修正所有错误，语言自然地道。",
-  "overall_comment": "用鼓励的语气写100字以内综合评价：①说明判断为XX级别、按该级别标准评分 ②肯定学生做得好的地方 ③指出关键问题 ④以积极的话语结束"
-}`;
+保底分：HSK3-4级≥65分，HSK5-6级≥70分。只要学生认真完成即不低于保底分。
+
+【输出 JSON 结构】与作文批改相同（radar_data六维、score_info、strengths、corrections、improvement_tips、exercises、model_answer、overall_comment）。
+
+model_answer：单句作业给出满分正确句子；短文作业给出修正后的满分版本（保留题意，语言自然）。`;
   }
 
-  // ── 口语批改（HSKK3.0 科学加权 + 自动识别级别）──────────────────────────────
+  // ── 口语批改（HSKK）────────────────────────────────────────────────────────
   if (mod === "oral") {
     return `${HSK_EXPERT_ROLE}
 
-【第一步：自动识别学生 HSKK 级别（必须先判断，再评分）】
-根据口语内容中的词汇量、句型复杂度、流利程度、话题拓展能力，判断学生处于哪个 HSKK 级别：
+【学生级别】学生已选择 HSKK中级 或 HSKK高级。你必须按该级别标准评分。满分100分。
 
-- HSKK 初级（对应 HSK 1-3级）：
-  词汇极少，主要用简单句，描述简短，停顿较多，多为"这是…""他在…"等基本句式
-  
-- HSKK 中级（对应 HSK 4-5级）：
-  能用较完整的段落描述图片，使用连接词（因为、所以、不仅、而且），有一定的话题拓展，
-  词汇约 1200-2500词，会出现语法错误但基本可理解，语速基本正常
+【HSKK中级 评分标准（保底合格分60分）】
+四大评分维度：
+1. 内容（40分）：观点明确、逻辑连贯、内容完整、举例贴切、思考有层次/辩证性。
+2. 流利度（30分）：语流顺畅、无频繁卡顿、无重复词语、无过多口头语（嗯/啊/呃）、断句自然。
+3. 词汇语法（25分）：用词准确、搭配地道、句式正确、语病少、词汇丰富度达标。
+4. 语音语调（5分）：发音清晰、语调自然，无明显偏误（中级弱化语音扣分）。
 
-- HSKK 高级（对应 HSK 6级）：
-  表达流畅自然，词汇丰富（2500+），复句运用娴熟，能深度拓展话题，
-  接近母语者的表达习惯，语法错误极少
+分数档位：优秀85-100 / 良好75-84 / 合格60-74 / 不合格＜60
 
-【第二步：以该级别的评分标准为参照打分（因材施教）】
-核心原则（请严格执行）：
-- HSKK 中级学生：该级别典型水准的表现 → 70-80分（良好）；明显好于典型水准 → 85-90分（优秀）
-- HSKK 高级学生：同样内容才在 55-70分；需要更高水准才能达到良好
-- 绝对禁止：将中级学生的表现用高级标准衡量，造成"明明是正常中级水平却不及格"的错误
-- 在 overall_comment 中必须说明"判断为 HSKK XX级，按该级别标准评分"
+【HSKK高级 评分标准（保底合格分70分）】
+四大评分维度：
+1. 内容（38分）：观点深刻、逻辑严谨、层次丰富，可多角度/辩证分析，举例典型，立意饱满。
+2. 流利度（32分）：语流自然顺畅，几乎无卡顿、重复、口头禅，断句、语速贴切，衔接丝滑。
+3. 词汇语法（25分）：词汇丰富多样，熟练使用中高阶词汇、固定搭配；句式灵活（长短句、复句结合），语法错误极少。
+4. 语音语调（5分）：发音标准，语调自然有起伏，轻重音、停顿合理，无明显发音偏差。
 
-【HSKK3.0 口语评分维度与权重（总分100分，合格60分）】
-按以下权重计算加权总分（不得用简单平均）：
-- 流利度与连贯性（权重35%）：语速是否自然，句子间是否连贯，有无过多停顿或填充词
-- 语法准确性（权重25%）：句型是否正确，有无影响理解的语法错误
-- 词汇丰富度（权重20%）：词汇量是否达到该级别，用词是否准确
-- 发音准确度（权重15%）：声母韵母是否准确（轻微口音不扣分）
-- 声调准确度（权重5%）：四声是否基本正确（侧重整体可理解性）
+分数档位：优秀88-100 / 良好78-87 / 合格70-77 / 不合格＜70
 
-【等级标准（相对于识别出的 HSKK 级别）】
-- 优秀：90-100分（在该级别中表现卓越）
-- 良好：78-90分（在该级别中表现良好）
-- 合格：65-78分（达到该级别基本要求）
-- 不合格：0-64分（未达到该级别最低要求）
+【评分执行规则】
+1. 先确认学生级别（中级或高级），严格按该级别的四维标准打分。
+2. 保底分是硬性底线——认真完成即不低于保底分。
+3. 优点：至少3条，引用原句说明好在哪里。
+4. 问题明细：分"流利度问题"和"词汇&语法错误"两类，每条原句→修正+解释。
+5. 标准朗读范文：标注 / 短停顿 // 长停顿，句式地道，适配考场标准表达。
+6. 分阶跟读练习：逐句跟读（3句）+ 同步齐读（慢速/正常语速/脱稿），配合pinyin。
+7. 专项提分小提醒：针对高频易错点、薄弱项总结。
 
-请严格按以下 JSON 结构返回批改结果：
+【输出 JSON 结构（严格按此格式）】
 {
-  "radar_data": { "发音": 0-100整数, "声调": 0-100整数, "流利度": 0-100整数, "词汇": 0-100整数, "语法": 0-100整数 },
+  "radar_data": { "发音": 0-100, "声调": 0-100, "流利度": 0-100, "词汇": 0-100, "语法": 0-100 },
   "score_info": {
-    "total": 按权重计算：流利度*0.35+语法*0.25+词汇*0.20+发音*0.15+声调*0.05，取整数,
-    "level": "优秀或良好或合格或不合格",
-    "passed": total>=60则true,
-    "detected_level": "HSKK初级或HSKK中级或HSKK高级",
+    "total": 加权总分（内容映射: 流利度+语法各分担内容分; 流利度→流利度; 词汇语法→词汇+语法; 语音语调→发音+声调。建议参考: 流利度*0.35+语法*0.15+词汇*0.10+语法额外*0.10+内容分散到各项; 简化为: 流利度*0.40+语法*0.25+词汇*0.20+发音*0.10+声调*0.05）,
+    "level": "优秀/良好/合格/不合格",
+    "passed": total>=60,
+    "detected_level": "HSKK中级或HSKK高级",
     "dimension_scores": { "发音": 同radar_data, "声调": 同, "流利度": 同, "词汇": 同, "语法": 同 }
   },
-  "strengths": [
-    "具体优点1：引用学生说的原句，指出好的表达，用温暖鼓励的语气说明好在哪里",
-    "具体优点2：同上",
-    "具体优点3：同上"
-  ],
+  "strengths": ["具体优点…", "具体优点…", "具体优点…"],
   "corrections": [
-    {
-      "original": "学生说的原句（必须原话引用，不得改写）",
-      "corrected": "地道的标准表达",
-      "dimension": "发音或声调或流利度或词汇或语法",
-      "explanation": "①具体错误类型 ②为什么要改成这样 ③涉及的语法规则或表达习惯"
-    }
+    { "original": "原句", "corrected": "修正句", "dimension": "发音/声调/流利度/词汇/语法", "explanation": "①错误类型 ②为什么要改成这样 ③涉及的规则" }
   ],
   "improvement_tips": [
-    { "dimension": "流利度", "tip": "针对该学生级别的停顿和衔接问题：推荐3-5个适合该级别的口语过渡词，并给出使用示范" },
-    { "dimension": "语法", "tip": "指出最常出错的句型，给出正确句型模板，提供2-3个口语场景例句" },
-    { "dimension": "词汇", "tip": "推荐该话题在该级别必备的口语词汇（5-8个），说明口语中的自然表达方式" },
-    { "dimension": "发音", "tip": "指出具体发音弱点，给出区分方法和练习技巧" },
-    { "dimension": "声调", "tip": "指出最容易混淆的声调组合，给出记忆口诀或区分方法" }
+    { "dimension": "流利度", "tip": "针对停顿和衔接问题，推荐3-5个口语过渡词+使用示范" },
+    { "dimension": "语法", "tip": "最常出错句型+正确模板+2-3个口语场景例句" },
+    { "dimension": "词汇", "tip": "该话题必备口语词汇5-8个+自然表达方式" },
+    { "dimension": "发音", "tip": "具体发音弱点+区分方法+练习技巧" },
+    { "dimension": "声调", "tip": "最容易混淆声调组合+记忆口诀" }
   ],
   "exercises": [
-    { "type": "跟读练习", "text": "针对该学生级别和发音/流利度弱点设计的练习句", "pinyin": "完整拼音标注（带声调符号）", "hint": "重点注意哪个音、哪个声调，或哪里的断句节奏" },
-    { "type": "跟读练习", "text": "包含该级别高频过渡词的练习句", "pinyin": "完整拼音标注", "hint": "注意语气词的自然停顿" },
-    { "type": "替换练习", "question": "用括号内的词替换句子中的画线部分，注意句式是否需要调整", "keyword": "该练习涉及的关键句型", "sample_answer": "完整参考答案（体现该级别自然口语表达）", "hint": "注意口语中的省略和简化规则" }
+    { "type": "跟读练习", "text": "练习句（含标注停顿 / 和 //）", "pinyin": "完整拼音标注带声调", "hint": "重点注意哪个音/声调/断句节奏" },
+    { "type": "跟读练习", "text": "包含高频过渡词的练习句", "pinyin": "完整拼音标注", "hint": "注意语气词的自然停顿" },
+    { "type": "替换练习", "question": "用括号内词替换画线部分，注意句式调整", "keyword": "关键句型", "sample_answer": "参考答案", "hint": "注意口语省略和简化规则" }
   ],
-  "model_answer": "将学生的口语作答按其级别+提升一步的标准改写成示范版本（约150-200字）。要求：①完整描述图片核心内容 ②使用符合目标级别的词汇和句型（不要过于华丽）③结构自然流畅 ④可直接作为该级别备考参考。",
-  "overall_comment": "用温暖鼓励的语气写100字以内综合评价：①开头说明'判断为 HSKK XX级，按该级别标准评分' ②具体肯定最突出的优点（引用原话）③简洁指出最需要改进的1-2点 ④以充满鼓励的结语收尾"
+  "model_answer": "标准朗读范文（150-200字，标注 / 短停顿 // 长停顿，句式高级表达地道，适配考场要求）",
+  "overall_comment": "温暖鼓励的100字综合评价：①说明按XX级标准评分 ②肯定最突出优点（引用原话）③指出最需改进1-2点 ④鼓励结语"
 }`;
   }
 
-  // ── 成绩分析（HSK3.0 专家级）────────────────────────────────────────────────
+  // ── 成绩分析 ──────────────────────────────────────────────────────────────
   if (mod === "score") {
     return `${HSK_EXPERT_ROLE}
 
 请对学生提供的 HSK 成绩数据进行深度分析，识别知识漏洞，制定个性化提升计划。
-严格返回纯 JSON，不要包含任何 Markdown 代码块标记：
+严格返回纯 JSON：
 {
   "radar_data": { "听力": 0-100, "阅读": 0-100, "写作": 0-100, "口语": 0-100, "语法": 0-100, "词汇": 0-100 },
   "trend_data": [{ "date": "YYYY-MM", "score": 0-100 }],
-  "corrections": [{ "original": "弱项描述（具体说明哪个题型/知识点薄弱）", "corrected": "突破方向（针对性策略）", "dimension": "维度名", "explanation": "深层原因分析 + 具体提升路径" }],
+  "corrections": [{ "original": "弱项描述", "corrected": "突破方向", "dimension": "维度名", "explanation": "深层原因分析+具体提升路径" }],
   "exercises": [
-    { "type": "专项练习", "question": "针对最薄弱项的代表性练习题", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "A", "explanation": "解析 + 延伸知识点" }
+    { "type": "专项练习", "question": "针对最薄弱项的代表性练习题", "options": ["A…","B…","C…","D…"], "answer": "A", "explanation": "解析+延伸知识点" }
   ],
-  "suggestions": "个性化学习规划：①当前水平诊断 ②近期突破重点（2-3个） ③每周学习计划（具体到每天做什么） ④预计进步时间线",
-  "overall_comment": "成绩趋势分析 + 当前综合水平评估 + 距离目标级别的差距分析 + 最重要的一条备考建议"
+  "suggestions": "个性化学习规划：①当前水平诊断 ②近期突破重点2-3个 ③每周学习计划 ④预计进步时间线",
+  "overall_comment": "成绩趋势分析+当前综合水平评估+距离目标级别的差距分析+最重要的一条备考建议"
 }`;
   }
 
   return `${HSK_EXPERT_ROLE}。请对以下中文内容进行分析，严格返回包含 radar_data、corrections、exercises、overall_comment 的纯 JSON。`;
 }
 
-// ─── exam 模块系统提示词（独立函数，不走 buildSystemPrompt） ───────────────────
+// ─── exam 模块系统提示词（独立函数）────────────────────────────────────────────
 function buildExamSystemPrompt(hskLevel: string, moduleType: string): string {
-  // HSK3.0 各模块题量标准参考
   const moduleInfo: Record<string, { count: number; focus: string }> = {
     "听力": { count: 30, focus: "语境理解、推断意图、信息提取，重视语调和语气线索" },
     "阅读": { count: 30, focus: "长文本理解、推断作者观点、细节定位，HSK3.0 新增长文本阅读" },
@@ -359,19 +293,24 @@ function buildExamSystemPrompt(hskLevel: string, moduleType: string): string {
 }`;
 }
 
+// ─── 错误类型 ──────────────────────────────────────────────────────────────────
+interface DoubaoError {
+  type: "network" | "auth" | "server" | "timeout" | "parse" | "unknown";
+  message: string;
+}
+
 // ─── 调用豆包 API ─────────────────────────────────────────────────────────────
 async function callDoubao(params: {
   apiKey: string;
   systemPrompt: string;
   userText: string;
-  imageBase64?: string;   // base64 图片（data URL）
-  imageUrl?: string;      // 图片公网 URL
+  imageBase64?: string;
+  imageUrl?: string;
 }): Promise<string> {
   const { apiKey, systemPrompt, userText, imageBase64, imageUrl } = params;
   const hasImage = imageBase64 || imageUrl;
   const model = hasImage ? DOUBAO_VISION_MODEL : DOUBAO_TEXT_MODEL;
 
-  // 构造用户消息内容
   type ContentPart =
     | { type: "text"; text: string }
     | { type: "image_url"; image_url: { url: string } };
@@ -393,7 +332,7 @@ async function callDoubao(params: {
 
   const body = {
     model,
-    temperature: 0.3,   // 低随机性，保证回答稳定专业
+    temperature: 0.3,
     max_tokens: 4096,
     messages: [
       { role: "system", content: systemPrompt },
@@ -401,18 +340,37 @@ async function callDoubao(params: {
     ],
   };
 
-  const resp = await fetch(`${DOUBAO_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(`${DOUBAO_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (e: unknown) {
+    // 网络级错误（DNS失败、连接拒绝、超时等）
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("timeout") || msg.includes("超时")) {
+      throw { type: "timeout", message: "AI 响应超时，请稍后重试" } as DoubaoError;
+    }
+    throw { type: "network", message: "网络连接失败，请检查网络后重试" } as DoubaoError;
+  }
 
   if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`豆包 API 错误 ${resp.status}: ${errText}`);
+    const errText = await resp.text().catch(() => "");
+    // 401/403 → 认证问题
+    if (resp.status === 401 || resp.status === 403) {
+      throw { type: "auth", message: "AI 服务配置错误，请联系管理员" } as DoubaoError;
+    }
+    // 5xx → 豆包服务器问题
+    if (resp.status >= 500) {
+      throw { type: "server", message: "AI 服务暂时不可用，请稍后重试" } as DoubaoError;
+    }
+    // 4xx → 请求参数问题
+    throw { type: "server", message: `AI 请求异常(${resp.status})，请稍后重试` } as DoubaoError;
   }
 
   const data = await resp.json();
@@ -421,13 +379,11 @@ async function callDoubao(params: {
 
 // ─── 解析 AI 返回的 JSON ──────────────────────────────────────────────────────
 function parseAiJson(content: string): Record<string, unknown> | null {
-  // 去除 Markdown 代码块标记
   const cleaned = content
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
     .trim();
 
-  // 匹配最大花括号块
   const match = cleaned.match(/\{[\s\S]*\}/);
   if (!match) return null;
 
@@ -437,15 +393,16 @@ function parseAiJson(content: string): Record<string, unknown> | null {
     return null;
   }
 }
-// ─── Mock 数据（API 不可用时降级，不生成假数据避免误导）────────────────────────
-function generateMockData(mod: string, dimensions: string[]) {
+
+// ─── Mock 降级数据 ─────────────────────────────────────────────────────────────
+function generateMockData(mod: string, dimensions: string[], errorMsg: string) {
   const radarData: Record<string, number> = {};
-  dimensions.forEach((d) => { radarData[d] = Math.floor(Math.random() * 25) + 68; });
+  dimensions.forEach((d) => { radarData[d] = Math.floor(Math.random() * 20) + 60; });
 
   const totalScore = Math.round(
     Object.values(radarData).reduce((a, b) => a + b, 0) / dimensions.length
   );
-  const level = totalScore >= 90 ? "优秀" : totalScore >= 75 ? "良好" : totalScore >= 60 ? "合格" : "不合格";
+  const level = totalScore >= 85 ? "优秀" : totalScore >= 75 ? "良好" : totalScore >= 60 ? "合格" : "不合格";
 
   const isNewModule = mod === "essay" || mod === "homework" || mod === "oral";
 
@@ -458,16 +415,34 @@ function generateMockData(mod: string, dimensions: string[]) {
       dimension_scores: { ...radarData },
     } : undefined,
     strengths: isNewModule
-      ? ["AI 服务暂时不可用，以上评分为系统估算，仅供参考。请稍后重新提交获取详细批改。"]
+      ? [`${errorMsg}。以上评分为系统估算，仅供参考。请稍后重新提交获取详细批改。`]
       : undefined,
     corrections: [],
     improvement_tips: isNewModule ? [] : undefined,
     exercises: [],
-    model_answer: isNewModule ? "AI 服务暂时不可用，请稍后重新提交批改。" : undefined,
-    overall_comment: "AI 服务当前不可用，已显示系统估算结果。请稍后重试。",
+    model_answer: isNewModule ? errorMsg : undefined,
+    overall_comment: errorMsg,
   };
 }
 
+// ─── 保底分保护 ────────────────────────────────────────────────────────────────
+function applyMinScore(aiResult: Record<string, unknown>, hskLevel?: string) {
+  if (!hskLevel) return;
+  const minScore = MIN_SCORE_MAP[hskLevel];
+  if (!minScore) return;
+
+  const scoreInfo = aiResult.score_info as Record<string, unknown> | undefined;
+  if (!scoreInfo) return;
+
+  const total = scoreInfo.total as number;
+  if (typeof total !== "number" || total <= 0) return;
+  if (total >= minScore) return;
+
+  // 分数低于保底分 → 提升到保底分
+  scoreInfo.total = minScore;
+  scoreInfo.level = minScore >= 85 ? "优秀" : minScore >= 75 ? "良好" : minScore >= 60 ? "合格" : "不合格";
+  scoreInfo.passed = minScore >= 60;
+}
 
 // ─── 主处理器 ─────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
@@ -480,10 +455,10 @@ Deno.serve(async (req) => {
       text = "",
       module: mod,
       language = "zh",
-      imageBase64,   // data URL（前端直接传 base64）
-      imageUrl,      // Supabase Storage 公开 URL
-      hskLevel = "HSK5",   // 考题解析专用：级别
-      moduleType = "阅读",  // 考题解析专用：题型
+      imageBase64,
+      imageUrl,
+      hskLevel,
+      moduleType = "阅读",
     } = await req.json();
 
     if (!mod) {
@@ -498,7 +473,6 @@ Deno.serve(async (req) => {
     const doubaoApiKey = Deno.env.get("DOUBAO_API_KEY");
     const supabase     = createClient(supabaseUrl, supabaseKey);
 
-    // 获取当前用户
     const authHeader = req.headers.get("Authorization");
     let userId: string | null = null;
     if (authHeader) {
@@ -508,7 +482,7 @@ Deno.serve(async (req) => {
 
     // ── exam 模块独立处理路径 ───────────────────────────────────────────────────
     if (mod === "exam") {
-      const systemPrompt = buildExamSystemPrompt(hskLevel, moduleType);
+      const systemPrompt = buildExamSystemPrompt(hskLevel || "HSK5", moduleType);
 
       const langNote = language === "en"
         ? "\n\nIMPORTANT: Write all 'meaning', 'explanation', 'description', 'strategy', 'change', 'impact', 'strategies', 'overall_tip' fields in English."
@@ -517,8 +491,8 @@ Deno.serve(async (req) => {
         : "";
 
       const userInput = text
-        ? `以下是学生提交的 HSK ${hskLevel} ${moduleType}考题，请按要求输出标准化解析报告：\n\n${text}${langNote}`
-        : `图片中是学生提交的 HSK ${hskLevel} ${moduleType}考题，请识别图片内容并输出标准化解析报告。${langNote}`;
+        ? `以下是学生提交的 HSK ${hskLevel || "HSK5"} ${moduleType}考题，请按要求输出标准化解析报告：\n\n${text}${langNote}`
+        : `图片中是学生提交的 HSK ${hskLevel || "HSK5"} ${moduleType}考题，请识别图片内容并输出标准化解析报告。${langNote}`;
 
       let examResult: Record<string, unknown> | null = null;
 
@@ -541,11 +515,10 @@ Deno.serve(async (req) => {
         console.warn("未找到 DOUBAO_API_KEY，使用 exam Mock 数据");
       }
 
-      // exam mock 降级
       if (!examResult) {
         examResult = {
           module_type: moduleType,
-          hsk_level: hskLevel,
+          hsk_level: hskLevel || "HSK5",
           total_questions: moduleType === "书写" ? 4 : 30,
           passage: "随着科技的快速发展，人工智能已经进入了我们生活的方方面面。从智能手机到自动驾驶汽车，从医疗诊断到教育辅助，AI技术正在深刻改变人类社会的运作方式。然而，这种变化也带来了一系列值得深思的问题：我们如何确保AI的发展符合人类的利益？如何在效率提升与就业保障之间找到平衡？这些问题需要政府、企业和社会各界共同探讨、协作解决。",
           passage_summary: "文章探讨人工智能对社会的影响，肯定其带来的便利，同时指出需要关注的就业和伦理问题，呼吁各方协作应对挑战。",
@@ -588,7 +561,6 @@ Deno.serve(async (req) => {
 
     // ── 原有批改模块路径 ────────────────────────────────────────────────────────
 
-    // 维度映射
     const dimensionsMap: Record<string, string[]> = {
       essay:    ["词汇", "语法", "结构", "表达", "逻辑", "书写"],
       homework: ["词汇", "语法", "结构", "表达", "逻辑", "书写"],
@@ -597,21 +569,20 @@ Deno.serve(async (req) => {
     };
     const dimensions = dimensionsMap[mod] ?? ["词汇", "语法", "表达"];
 
-    const systemPrompt = buildSystemPrompt(mod);
+    const systemPrompt = buildSystemPrompt(mod, hskLevel);
 
-    // 语言附言（非中文时让豆包用对应语言回复 overall_comment）
     const langNote = language === "en"
       ? "\n\nIMPORTANT: Write 'overall_comment' and 'suggestions' fields in English."
       : language === "ru"
       ? "\n\nВАЖНО: Поле 'overall_comment' и 'suggestions' напишите на русском языке."
       : "";
 
-    // 构建用户输入
     const userInput = text
       ? `${text}${langNote}`
       : `（图片内容）${langNote}`;
 
     let aiResult: Record<string, unknown> | null = null;
+    let errorMsg = "AI 服务当前不可用，已显示系统估算结果。请稍后重试。";
 
     if (doubaoApiKey) {
       try {
@@ -626,17 +597,30 @@ Deno.serve(async (req) => {
         aiResult = parseAiJson(content);
         if (!aiResult) {
           console.error("JSON 解析失败，原始内容:", content.slice(0, 500));
+          errorMsg = "AI 返回数据异常，请重试";
+        } else {
+          // AI 返回成功 → 应用保底分保护
+          applyMinScore(aiResult, hskLevel);
         }
-      } catch (e) {
+      } catch (e: unknown) {
         console.error("豆包 API 调用失败:", e);
+        const err = e as DoubaoError;
+        if (err.type && err.message) {
+          errorMsg = err.message;
+        } else if (e instanceof Error) {
+          errorMsg = e.message.includes("timeout") || e.message.includes("超时")
+            ? "AI 响应超时，请稍后重试"
+            : e.message.includes("fetch") || e.message.includes("network")
+            ? "网络连接失败，请检查网络后重试"
+            : "AI 服务暂时不可用，请稍后重试";
+        }
       }
     } else {
       console.warn("未找到 DOUBAO_API_KEY，使用 Mock 数据");
     }
 
-    // 降级到 Mock
     if (!aiResult) {
-      aiResult = generateMockData(mod, dimensions);
+      aiResult = generateMockData(mod, dimensions, errorMsg);
     }
 
     // 写入历史记录

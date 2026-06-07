@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Loader2, Mic, Sparkles, Waves, FileText } from 'lucide-react';
 import CorrectionResult from '@/components/common/CorrectionResult';
 import AiLoading from '@/components/common/AiLoading';
+import HskLevelSelector from '@/components/common/HskLevelSelector';
 import { useAiCorrect } from '@/hooks/useAiCorrect';
 
 export default function OralPage() {
@@ -17,6 +18,7 @@ export default function OralPage() {
   const [uploading, setUploading] = useState(false);
   const [tab, setTab]         = useState<'text' | 'audio'>('text');
   const [focused, setFocused] = useState(false);
+  const [hskLevel, setHskLevel] = useState('HSKK中级');
 
   const { loading, progress, result, correct, reset } = useAiCorrect({ module: 'oral', language });
 
@@ -34,7 +36,7 @@ export default function OralPage() {
       else if (callCheck.reason === 'disabled') toast.error(L('小Yu码已被禁用，请联系老师', 'Yu Code disabled', 'Код заблокирован'));
       return;
     }
-    await correct({ text: text.trim() });
+    await correct({ text: text.trim(), hskLevel });
   };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +102,15 @@ export default function OralPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{t('module.oral.desc', language)}</p>
         </div>
       </div>
+
+      <HskLevelSelector
+        options={[
+          { value: 'HSKK中级', label: L('HSKK中级', 'HSKK Mid', 'HSKK Средний') },
+          { value: 'HSKK高级', label: L('HSKK高级', 'HSKK High', 'HSKK Высокий') },
+        ]}
+        value={hskLevel}
+        onChange={setHskLevel}
+      />
 
       <div className="card-premium overflow-hidden">
         <div className="flex border-b border-border/50 bg-muted/20">

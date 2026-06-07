@@ -1,11 +1,13 @@
 import { useState, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useYuCode } from '@/contexts/YuCodeContext';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/db/supabase';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, BarChart3, Sparkles, Upload, Image, FileText } from 'lucide-react';
 import CorrectionResult from '@/components/common/CorrectionResult';
+import HskLevelSelector from '@/components/common/HskLevelSelector';
 import type { RadarData, Correction, Exercise } from '@/types/types';
 
 type Result = {
@@ -19,9 +21,11 @@ type Result = {
 
 export default function ScorePage() {
   const { language } = useLanguage();
+  const { isActivated, openModal, trackApiCall } = useYuCode();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [hskLevel, setHskLevel] = useState('HSK4');
   const [result, setResult] = useState<Result | null>(() => {
     try { const r = sessionStorage.getItem('hsk_score_result'); return r ? JSON.parse(r) : null; } catch { return null; }
   });
@@ -63,6 +67,7 @@ export default function ScorePage() {
 
   const handleSubmit = async () => {
     if (loading) { toast.info(L('上一次分析正在进行中，请稍候查看结果', 'Previous correction is still processing, please wait', 'Идёт обработка, дождитесь результата')); return; }
+    if (!isActivated) { openModal(); return; }
     if (tab === 'text' && !text.trim()) {
       toast.error(L('请输入成绩数据', 'Please enter score data', 'Введите оценки'));
       return;
@@ -71,10 +76,17 @@ export default function ScorePage() {
       toast.error(L('请先上传图片', 'Please upload an image first', 'Загрузите изображение'));
       return;
     }
-    setResult(null);  // 清除旧结果，防止串台
+    const callCheck = await trackApiCall();
+    if (!callCheck.ok) {
+      if (callCheck.reason === 'limit_reached') toast.error(L('今日分析次数已用完，明天再来', 'Daily limit reached, try tomorrow', 'Дневной лимит исчерпан'));
+      else if (callCheck.reason === 'expired')  toast.error(L('小Yu码已到期，请联系老师续期', 'Yu Code expired', 'Код истёк'));
+      else if (callCheck.reason === 'disabled') toast.error(L('小Yu码已被禁用，请联系老师', 'Yu Code disabled', 'Код заблокирован'));
+      return;
+    }
+    setResult(null);
     setLoading(true);
     try {
-      const body: Record<string, string> = { module: 'score', language };
+      const body: Record<string, string> = { module: 'score', language, hskLevel };
       if (tab === 'text') {
         body.text = text.trim();
       } else {
@@ -122,6 +134,19 @@ export default function ScorePage() {
           <p className="text-xs text-muted-foreground mt-0.5">{t('module.score.desc', language)}</p>
         </div>
       </div>
+
+      <HskLevelSelector
+        options={[
+          { value: 'HSK1', label: 'HSK1' },
+          { value: 'HSK2', label: 'HSK2' },
+          { value: 'HSK3', label: 'HSK3' },
+          { value: 'HSK4', label: 'HSK4' },
+          { value: 'HSK5', label: 'HSK5' },
+          { value: 'HSK6', label: 'HSK6' },
+        ]}
+        value={hskLevel}
+        onChange={setHskLevel}
+      />
 
       <div className="card-premium overflow-hidden">
         {/* 标签栏 */}

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Upload, PenLine, Sparkles, Image, FileText, Loader2 } from 'lucide-react';
 import CorrectionResult from '@/components/common/CorrectionResult';
 import AiLoading from '@/components/common/AiLoading';
+import HskLevelSelector from '@/components/common/HskLevelSelector';
 import { useAiCorrect } from '@/hooks/useAiCorrect';
 
 export default function EssayPage() {
@@ -18,6 +19,7 @@ export default function EssayPage() {
   const [charFocus, setCharFocus]         = useState(false);
   const [imagePreview, setImagePreview]   = useState<string | null>(null);
   const [imageBase64, setImageBase64]     = useState<string | null>(null);
+  const [hskLevel, setHskLevel]           = useState('HSK3-4');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { loading, progress, result, correct, reset } = useAiCorrect({ module: 'essay', language });
@@ -59,9 +61,9 @@ export default function EssayPage() {
       return;
     }
     if (tab === 'text') {
-      await correct({ text: text.trim() });
+      await correct({ text: text.trim(), hskLevel });
     } else {
-      await correct({ imageBase64: imageBase64!, text: L('请识别图片中的作文并进行批改', 'Read and correct the essay in the image', 'Исправьте сочинение') });
+      await correct({ imageBase64: imageBase64!, text: L('请识别图片中的作文并进行批改', 'Read and correct the essay in the image', 'Исправьте сочинение'), hskLevel });
     }
   };
 
@@ -116,6 +118,16 @@ export default function EssayPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{t('module.essay.desc', language)}</p>
         </div>
       </div>
+
+      {/* 级别选择 */}
+      <HskLevelSelector
+        options={[
+          { value: 'HSK3-4', label: L('HSK3-4级作文', 'HSK3-4 Essay', 'HSK3-4 Сочинение') },
+          { value: 'HSK5-6', label: L('HSK5-6级作文', 'HSK5-6 Essay', 'HSK5-6 Сочинение') },
+        ]}
+        value={hskLevel}
+        onChange={setHskLevel}
+      />
 
       {/* 输入卡片 */}
       <div className="card-premium overflow-hidden">

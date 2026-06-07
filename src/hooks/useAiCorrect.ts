@@ -55,8 +55,8 @@ function clearModuleCache(key: string) {
 }
 
 /** sessionStorage 内容回填缓存 key */
-function cacheKey(mod: string, content: string): string {
-  return `hsk_cache_${mod}_${content.slice(0, 128)}`;
+function cacheKey(mod: string, content: string, hskLevel?: string): string {
+  return `hsk_cache_${mod}_${hskLevel ?? 'auto'}_${content.slice(0, 128)}`;
 }
 function readCache(key: string): CorrectionResultData | null {
   try {
@@ -141,6 +141,7 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
     text?: string;
     imageBase64?: string;
     imageUrl?: string;
+    hskLevel?: string;
   }) => {
     // 同步锁，彻底杜绝连点
     if (loadingRef.current) {
@@ -150,7 +151,7 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
     loadingRef.current = true;
 
     const cacheContent = params.text || params.imageUrl || params.imageBase64?.slice(0, 64) || '';
-    const cacheK = cacheKey(mod, cacheContent);
+    const cacheK = cacheKey(mod, cacheContent, params.hskLevel);
 
     const cached = readCache(cacheK);
     if (cached) {
@@ -171,6 +172,7 @@ export function useAiCorrect({ module: mod, language }: UseAiCorrectOptions) {
       if (params.text)        body.text        = params.text;
       if (params.imageBase64) body.imageBase64  = params.imageBase64;
       if (params.imageUrl)    body.imageUrl     = params.imageUrl;
+      if (params.hskLevel)    body.hskLevel     = params.hskLevel;
 
       const { data, error } = await supabase.functions.invoke('ai-correct', { body });
 
