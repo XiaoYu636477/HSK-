@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useYuCode } from '@/contexts/YuCodeContext';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/db/supabase';
@@ -13,6 +14,7 @@ import { useAiCorrect } from '@/hooks/useAiCorrect';
 
 export default function OralPage() {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const { isActivated, openModal, trackApiCall } = useYuCode();
   const [text, setText]       = useState('');
   const [uploading, setUploading] = useState(false);
@@ -43,7 +45,8 @@ export default function OralPage() {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
     try {
-      const fn = `oral_${Date.now()}.${file.name.split('.').pop()}`;
+      if (!user) throw new Error('Please login before uploading');
+      const fn = `${user.id}/oral/oral_${Date.now()}.${file.name.split('.').pop()}`;
       const { error } = await supabase.storage.from('uploads').upload(fn, file, { contentType: file.type });
       if (error) throw error;
       toast.success(L('录音上传成功', 'Audio uploaded', 'Загружено'));
@@ -86,6 +89,8 @@ export default function OralPage() {
         strengths={result.strengths}
         improvementTips={result.improvement_tips}
         modelAnswer={result.model_answer}
+        isMock={result.is_mock}
+        mockReason={result.mock_reason}
       />
     </div>
   );

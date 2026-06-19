@@ -94,13 +94,13 @@ export function YuCodeProvider({ children }: { children: ReactNode }) {
     setYuCode(null);
   }, []);
 
-  // 每次 AI 调用后计数
+  // The real quota is enforced inside Edge Functions, so direct calls are protected too.
   const trackApiCall = useCallback(async (): Promise<{ ok: boolean; reason?: string }> => {
     if (!yuCode) return { ok: false, reason: 'no_code' };
-    const { data, error } = await supabase.rpc('increment_api_call');
-    if (error) return { ok: false, reason: error.message };
-    const res = data as { ok: boolean; reason?: string };
-    return res;
+    if (yuCode.status === 'disabled') return { ok: false, reason: 'disabled' };
+    if (yuCode.expiresAt && new Date(yuCode.expiresAt) < new Date()) return { ok: false, reason: 'expired' };
+    if (yuCode.callsToday >= yuCode.dailyLimit) return { ok: false, reason: 'limit_reached' };
+    return { ok: true };
   }, [yuCode]);
 
   return (

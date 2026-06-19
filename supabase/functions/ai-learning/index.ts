@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 const DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
 const DOUBAO_MODEL    = "doubao-1-5-pro-32k-250115";
 
@@ -103,6 +110,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "未登录" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
+    }
+
+    const userScopedSupabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: quotaData, error: quotaError } = await userScopedSupabase.rpc("increment_api_call");
+    if (quotaError) {
+      return jsonResponse({ error: "Quota check failed", reason: quotaError.message }, 403);
+    }
+    const quota = quotaData as { ok: boolean; reason?: string };
+    if (!quota?.ok) {
+      return jsonResponse({ error: "Quota denied", reason: quota?.reason ?? "not_allowed" }, 403);
     }
 
     const body = await req.json();

@@ -3,7 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileText, Eye, Layers, BookMarked, PenLine, ChevronDown, Sparkles } from 'lucide-react';
+import { FileText, Eye, Layers, BookMarked, PenLine, ChevronDown, Sparkles, Download } from 'lucide-react';
 
 const L = (lang: string, zh: string, en: string, ru: string) =>
   lang === 'zh' ? zh : lang === 'ru' ? ru : en;

@@ -1,9 +1,49 @@
 // ─── CORS ────────────────────────────────────────────────────────────────────
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...cors, "Content-Type": "application/json" },
+  });
+}
+
+async function requireUserAndQuota(req: Request): Promise<{ response?: Response; userId?: string }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { response: jsonResponse({ error: "Unauthorized", reason: "not_logged_in" }, 401) };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+  const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (userError || !user) {
+    return { response: jsonResponse({ error: "Unauthorized", reason: "invalid_session" }, 401) };
+  }
+
+  const userScopedSupabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data, error } = await userScopedSupabase.rpc("increment_api_call");
+  if (error) {
+    return { response: jsonResponse({ error: "Quota check failed", reason: error.message }, 403) };
+  }
+
+  const quota = data as { ok: boolean; reason?: string };
+  if (!quota?.ok) {
+    return { response: jsonResponse({ error: "Quota denied", reason: quota?.reason ?? "not_allowed" }, 403) };
+  }
+
+  return { userId: user.id };
+}
 
 const DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
 const DOUBAO_MODEL    = "doubao-1-5-pro-32k-250115";
@@ -91,6 +131,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
+    const auth = await requireUserAndQuota(req);
+    if (auth.response) return auth.response;
+
     const {
       hskLevel    = "HSK4",
       dimensions  = ["词汇", "语法"],

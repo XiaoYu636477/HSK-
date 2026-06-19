@@ -7,6 +7,47 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function requireUserAndQuota(
+  req: Request,
+  supabaseUrl: string,
+  supabaseKey: string,
+): Promise<{ response?: Response; userId?: string }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { response: jsonResponse({ error: "Unauthorized", reason: "not_logged_in" }, 401) };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  if (userError || !user) {
+    return { response: jsonResponse({ error: "Unauthorized", reason: "invalid_session" }, 401) };
+  }
+
+  const userScopedSupabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data, error } = await userScopedSupabase.rpc("increment_api_call");
+  if (error) {
+    return { response: jsonResponse({ error: "Quota check failed", reason: error.message }, 403) };
+  }
+
+  const quota = data as { ok: boolean; reason?: string };
+  if (!quota?.ok) {
+    return { response: jsonResponse({ error: "Quota denied", reason: quota?.reason ?? "not_allowed" }, 403) };
+  }
+
+  return { userId: user.id };
+}
+
 // Doubao API config
 const DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
 const DOUBAO_TEXT_MODEL  = "doubao-1-5-pro-32k-250115";
@@ -274,7 +315,7 @@ async function callDoubao(params: {
   const body = {
     model,
     temperature: 0.3,
-    max_tokens: 4096,
+    max_tokens: 8192,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: systemPrompt },
@@ -409,13 +450,9 @@ Deno.serve(async (req) => {
     const supabaseKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const doubaoApiKey = Deno.env.get("DOUBAO_API_KEY");
     const supabase     = createClient(supabaseUrl, supabaseKey);
-
-    const authHeader = req.headers.get("Authorization");
-    let userId: string | null = null;
-    if (authHeader) {
-      const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-      userId = user?.id ?? null;
-    }
+    const auth = await requireUserAndQuota(req, supabaseUrl, supabaseKey);
+    if (auth.response) return auth.response;
+    const userId = auth.userId!;
 
     // Exam module - separate path
     if (mod === "exam") {
@@ -528,18 +565,16 @@ Deno.serve(async (req) => {
       aiResult = generateMockData(mod, dimensions, errorMsg);
     }
 
-    if (userId) {
-      await supabase.from("corrections").insert({
-        user_id:          userId,
-        module:           mod,
-        input_text:       text || "[Image recognition]",
-        radar_data:       aiResult.radar_data,
-        corrections_data: aiResult.corrections,
-        exercises_data:   aiResult.exercises,
-        score_data:       aiResult.trend_data ?? null,
-        suggestions:      aiResult.suggestions ?? aiResult.overall_comment ?? null,
-      });
-    }
+    await supabase.from("corrections").insert({
+      user_id:          userId,
+      module:           mod,
+      input_text:       text || "[Image recognition]",
+      radar_data:       aiResult.radar_data,
+      corrections_data: aiResult.corrections,
+      exercises_data:   aiResult.exercises,
+      score_data:       aiResult.trend_data ?? null,
+      suggestions:      aiResult.suggestions ?? aiResult.overall_comment ?? null,
+    });
 
     return new Response(
       JSON.stringify(aiResult),

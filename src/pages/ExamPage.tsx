@@ -94,8 +94,9 @@ export default function ExamPage() {
 
     setUploadingImg(true);
     try {
+      if (!user) throw new Error('Please login before uploading');
       const ext  = file.name.split('.').pop() ?? 'jpg';
-      const path = `exam/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const path = `${user.id}/exam/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage.from('uploads').upload(path, file, { contentType: file.type });
       if (error) throw error;
       const { data } = supabase.storage.from('uploads').getPublicUrl(path);

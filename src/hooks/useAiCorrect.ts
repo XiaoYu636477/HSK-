@@ -45,6 +45,7 @@ function readModuleCache(key: string): CorrectionResultData | null {
   return _moduleCache[key] ?? null;
 }
 function writeModuleCache(key: string, data: CorrectionResultData) {
+  if (data.is_mock) return;
   _moduleCache[key] = data;
   // 同时写 sessionStorage，防止页面刷新丢失
   try { sessionStorage.setItem(key, JSON.stringify({ data })); } catch {}
@@ -68,6 +69,8 @@ function readCache(key: string): CorrectionResultData | null {
   } catch { return null; }
 }
 function writeCache(key: string, data: CorrectionResultData) {
+  // Never cache mock/fallback data — only real AI results
+  if (data.is_mock) return;
   try { sessionStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
 }
 

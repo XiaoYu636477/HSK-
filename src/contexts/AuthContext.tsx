@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (identifier: string, password: string) => {
     try {
       const email = identifier.includes('@') ? identifier : `${identifier}@miaoda.com`;
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -105,13 +105,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       });
       if (error) throw error;
-
-      // Auto-confirm email via edge function
-      if (data?.user?.id) {
-        supabase.functions.invoke('confirm-user', {
-          body: { userId: data.user.id }
-        }).catch(() => {}); // fire-and-forget, don't block signup flow
-      }
 
       return { error: null };
     } catch (error) {

@@ -262,8 +262,7 @@ function CockpitView({ L }: { L: ReturnType<typeof useL> }) {
         });
         setTrendData(points.slice(-12));
         setLoadingCharts(false);
-      })
-      .catch(() => setLoadingCharts(false));
+      }, () => setLoadingCharts(false));
   }, [user]);
 
   const daysLeft = yuCode?.expiresAt

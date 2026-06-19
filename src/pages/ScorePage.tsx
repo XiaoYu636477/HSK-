@@ -17,6 +17,8 @@ type Result = {
   overall_comment: string;
   suggestions?: string;
   trend_data?: { date: string; score: number }[];
+  is_mock?: boolean;
+  mock_reason?: string;
 };
 
 export default function ScorePage() {
@@ -119,7 +121,8 @@ export default function ScorePage() {
       </div>
       <CorrectionResult radarData={result.radar_data} corrections={result.corrections || []}
         exercises={result.exercises || []} overallComment={result.overall_comment}
-        suggestions={result.suggestions} trendData={result.trend_data} module="score" />
+        suggestions={result.suggestions} trendData={result.trend_data} module="score"
+        isMock={result.is_mock} mockReason={result.mock_reason} />
     </div>
   );
 

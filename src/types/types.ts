@@ -79,6 +79,8 @@ export interface CorrectionResultData {
   overall_comment?: string;
   suggestions?: string;
   trend_data?: { date: string; score: number }[];
+  is_mock?: boolean;
+  mock_reason?: string;
 }
 
 export interface CorrectionRecord {

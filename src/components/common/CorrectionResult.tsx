@@ -29,6 +29,9 @@ interface CorrectionResultProps {
   strengths?: string[];
   improvementTips?: ImprovementTip[];
   modelAnswer?: string;
+  // Mock detection
+  isMock?: boolean;
+  mockReason?: string;
 }
 
 /** 数字滚动动画 */
@@ -80,6 +83,7 @@ function Section({ title, icon: Icon, accent, children, defaultOpen = true }:
 export default function CorrectionResult({
   radarData, corrections, exercises, overallComment, suggestions, trendData, module: mod,
   scoreInfo, strengths, improvementTips, modelAnswer,
+  isMock, mockReason,
 }: CorrectionResultProps) {
   const { language } = useLanguage();
   const [selectedDimension, setSelectedDimension] = useState<string | null>(null);
@@ -207,6 +211,34 @@ export default function CorrectionResult({
 
   return (
     <div className="space-y-4 animate-fade-up">
+
+      {/* ══ Mock 警告横幅 ══════════════════════════════════════════════════ */}
+      {isMock && (
+        <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/8 overflow-hidden animate-fade-up">
+          <div className="flex items-start gap-3 px-5 py-4">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mb-1">
+                {L('⚠️ AI 批改服务暂时不可用', '⚠️ AI correction service unavailable', '⚠️ Сервис ИИ недоступен')}
+              </p>
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/70 leading-relaxed">
+                {L(
+                  '以下数据为系统估算值，不代表真实评分水平。请稍后点击"重新批改"重试以获得 AI 详细分析。',
+                  'The data below is a system estimate and does not reflect your actual level. Please tap "New" to retry for detailed AI analysis.',
+                  'Данные ниже — оценка системы, не отражает реальный уровень. Нажмите "Заново" для повторной попытки.'
+                )}
+              </p>
+              {mockReason && (
+                <p className="text-[11px] text-amber-500/60 mt-1.5 font-mono truncate">
+                  {mockReason}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ 新模板：顶部评分卡 ══════════════════════════════════════════════════ */}
       {isNewTemplate ? (

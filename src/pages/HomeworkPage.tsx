@@ -100,6 +100,8 @@ export default function HomeworkPage() {
         strengths={result.strengths}
         improvementTips={result.improvement_tips}
         modelAnswer={result.model_answer}
+        isMock={result.is_mock}
+        mockReason={result.mock_reason}
       />
     </div>
   );
